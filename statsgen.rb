@@ -6,8 +6,9 @@ class StatsGen
     include Minichart
     include Victor
     @statsInterval = 10 #in seconds
-    @statCutoff = (60 * 60 * 1) #in seconds
+    @statCutoff = (60 * 60 * 1) #(60 * 60 * 1) #in seconds
     @statsDir = "./monitorstatgen/stats/"
+
 
     def self.statsGenThread()
         time = Time.new
@@ -20,6 +21,7 @@ class StatsGen
         system("./monitorstatgen/statgen.sh > #{@statsDir}#{statsTime}.txt")
         if (Dir[File.join(@statsDir + "/**/*")].length <= 1)
             # we need at least 2 stats file to generate a graph
+            sleep(1)
             time = Time.new
             statsTime = time.strftime("%Y%m%d%H%M%S%L")
             system("./monitorstatgen/statgen.sh > #{@statsDir}#{statsTime}.txt")
@@ -30,18 +32,17 @@ class StatsGen
         parsedStatArray = parseStatFiles(fileArray)
         Log.log("Generating HTML content and images", 0)
         generateStatHTML(parsedStatArray)
-        Log.log("Garbage collecting", 0)
-        GC.start()
         Log.log("Stats generation sleeping for #{@statsInterval}", 0)
+        #sleep before exiting
         sleep(@statsInterval)
-        statsGenThread()
+        #statsGenThread()
     end
 
     def self.generatePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints)
         plotPointXSteps = (chartWidth.to_f / totalPoints.to_f)
         plotPointVerticalSteps = (chartHeight.to_f / maxValue.to_f)
 
-        plotPoint = (currentPoint * plotPointXSteps).to_i.to_s + "," + (chartHeight + 50 - (value * plotPointVerticalSteps)).to_i.to_s
+        plotPoint = (currentPoint * plotPointXSteps).to_i.to_s + "," + (chartHeight - (value * plotPointVerticalSteps)).to_i.to_s
 
         return plotPoint
     end
@@ -68,7 +69,7 @@ class StatsGen
         bottomMarkersY = chartHeight - 5
 
         valueArray.each do |value|
-            chartPlotPoints += generatePlotPoints(chartHeight - 50, chartWidth, value, maxValue, currentPoint, totalPoints) + " "
+            chartPlotPoints += generatePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints) + " "
             currentPoint += 1
         end
         chart.build do
@@ -197,13 +198,13 @@ class StatsGen
         htmlContent.gsub!("{cpuClockValue}", cpuClockSpeed[cpuClockSpeed.length() - 1].to_s)
         htmlContent.gsub!("{cpuTempValue}", cpuTemp[cpuTemp.length() - 1].to_s)
         htmlContent.gsub!("{memUsedValue}", memUsed[memUsed.length() - 1].to_i.to_s)
-        htmlContent.gsub!("{memTotalValue}", (memTotal[0].round(2)).to_s)
+        htmlContent.gsub!("{memTotalValue}", memTotal[0].to_s)
         htmlContent.gsub!("{driveUsedValue}", ((((driveUsedMB[driveUsedMB.length - 1].to_f / driveTotalMB[0].to_f) * 100).round(2)).to_s))
         htmlContent.gsub!("{driveKBReadsValue}", driveKBReads[driveKBReads.length() - 1].to_s)
         htmlContent.gsub!("{driveKBWritesValue}", driveKBWrites[driveKBWrites.length() - 1].to_s)
         htmlContent.gsub!("{currentNetInValue}", networkKBIn[networkKBIn.length() - 1].to_s)
         htmlContent.gsub!("{currentNetOutValue}", networkKBOut[networkKBOut.length() - 1].to_s)
-        htmlContent.gsub!("{uptimeValueRaw}", uptime[uptime.length() - 1].to_s)
+        htmlContent.gsub!("{uptimeValueRaw}", uptime[uptime.length() - 1].to_s.gsub("up ", ""))
 
         File.write(indexLocation, htmlContent)
     end

@@ -38,7 +38,11 @@ def sanitizeUserRequests(requestContent, ipAddr)
 end
 
 t1 = Thread.new do
-  StatsGen.statsGenThread()
+  while true do
+    StatsGen.statsGenThread()
+    Log.log("Garbage collecting", 0)
+    GC.start()        
+  end
 end
 
 server = TCPServer.new('localhost', 6689)

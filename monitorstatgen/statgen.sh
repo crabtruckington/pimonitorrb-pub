@@ -5,4 +5,5 @@ cat /proc/meminfo | sed '3q' | awk '{print $1 $2}' | sed 's/:/=/' #memoryusage
 df | grep "root" | awk '{print "drivetotalmb=" $2/1024 "\r\ndriveusedmb=" $3/1024 "\r\ndriveavailablemb=" $4/1024 }' #disk usage
 iostat -d | grep "sda" | awk '{print "drivekbreads="$3"\r\ndrivekbwrites="$4 }' #disk IO stats
 ifstat -i eth0  0.1 1 | sed '3q;d' | awk '{print "networkkbin=" $1 "\r\nnetworkkbout=" $2}' #network usage
-uptime -s | awk '{print "systemuptime="$1, $2}'
+uptimevar=$(uptime -p)
+echo "systemuptime=$uptimevar"
