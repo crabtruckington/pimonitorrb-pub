@@ -1,6 +1,6 @@
 # Pi Monitor
 
-![Image of pimonitor](https://i.imgur.com/PVPbVC3.png)
+![Image of pimonitor](https://i.imgur.com/ztGXqvr.png)
 
 This is a simple monitoring server intended for a raspberry pi (though you could run this on any linux machine).
 
