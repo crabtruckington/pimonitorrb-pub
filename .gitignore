@@ -1,0 +1,6 @@
+/.*
+.*
+*.log
+/monitorstatgen/stats/*
+/content/monitor/images/*
+!.gitignore

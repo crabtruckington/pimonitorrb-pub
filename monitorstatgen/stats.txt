@@ -1,0 +1,16 @@
+user=0.21
+system=0.55
+idle=99.23
+clockspeed=666.826
+temp=33.0
+MemTotal=7950648
+MemFree=7290320
+MemAvailable=7685704
+total=58.1906
+used=3.34689
+available=51.8595
+kbreads=3.61
+kbwrites=2.77
+kbin=0.58
+kbout=0.00
+uptime=2020-08-21 19:42:43
