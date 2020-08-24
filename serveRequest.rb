@@ -43,7 +43,7 @@ class ServeRequest
                     socket.print "\r\n"
         
                     IO.copy_stream(file, socket)
-                    Log.log("200 OK #{path} , #{remote_ip}", 1)            
+                    Log.log("200 OK #{path} , #{remote_ip}", 2)            
                 end
         
             #serve implicit index request if possible, or 404
@@ -58,7 +58,7 @@ class ServeRequest
                         socket.print "\r\n"
             
                         IO.copy_stream(file, socket)
-                        Log.log("200 OK , redirected #{path} to #{potentialIndex} , #{remote_ip}", 1)
+                        Log.log("200 OK , redirected #{path} to #{potentialIndex} , #{remote_ip}", 2)
                     end
                 else
                     respondWith404(socket, path)
@@ -71,7 +71,7 @@ class ServeRequest
         
             socket.close
         rescue Exception => e
-            Log.log("Exception serving request for #{path} , #{socket.peeraddr}\r\n#{e}")
+            Log.log("Exception serving request for #{path} , #{socket.peeraddr}\r\n#{e}", 3)
         end
     end
 
@@ -87,6 +87,6 @@ class ServeRequest
         socket.print "\r\n"      
         socket.print message
 
-        Log.log("404 NOT FOUND #{path} , #{remote_ip}", 1)
+        Log.log("404 NOT FOUND #{path} , #{remote_ip}", 2)
     end
 end

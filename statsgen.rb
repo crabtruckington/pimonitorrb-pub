@@ -11,23 +11,28 @@ class StatsGen
 
     def self.statsGenThread()
         time = Time.new
-        statsTime = time.strftime("%Y%m%d%H%M%S")
+        statsTime = time.strftime("%Y%m%d%H%M%S%L")
         fileArray = Array.new
         parsedStatArray = Array.new
-
-        Log.log("Rotating stats files", 1)
+        
         Log.log("Generating new stats...", 0)
+        Dir.mkdir(@statsDir) unless Dir.exist?(@statsDir)
         system("./monitorstatgen/statgen.sh > #{@statsDir}#{statsTime}.txt")
-        if (Dir[@statsDir + "/**/*"].length <= 1)
+        if (Dir[File.join(@statsDir + "/**/*")].length <= 1)
             # we need at least 2 stats file to generate a graph
+            time = Time.new
+            statsTime = time.strftime("%Y%m%d%H%M%S%L")
             system("./monitorstatgen/statgen.sh > #{@statsDir}#{statsTime}.txt")
         end
         Log.log("Stats generated, rotating stats and sorting stat list...", 0)
         fileArray = rotateStatsAndGenerateStatArray()
         Log.log("Stats rotated, generating new stats", 0)
         parsedStatArray = parseStatFiles(fileArray)
-
+        Log.log("Generating HTML content and images", 0)
         generateStatHTML(parsedStatArray)
+        Log.log("Garbage collecting", 0)
+        GC.start()
+        Log.log("Stats generation sleeping for #{@statsInterval}", 0)
         sleep(@statsInterval)
         statsGenThread()
     end
@@ -61,6 +66,7 @@ class StatsGen
         rightMarkersYInterval = chartHeight / 4
         bottomMarkersXInterval = chartWidth / 30
         bottomMarkersY = chartHeight - 5
+
         valueArray.each do |value|
             chartPlotPoints += generatePlotPoints(chartHeight - 50, chartWidth, value, maxValue, currentPoint, totalPoints) + " "
             currentPoint += 1
@@ -112,6 +118,8 @@ class StatsGen
         networkKBOut = Array.new
         uptime = Array.new
 
+
+        Dir.mkdir(chartsSaveFolder) unless Dir.exist?(chartsSaveFolder)
         parsedStatArray.each do |statHashes|
             cpuUsed << statHashes["cpuuser"].to_f + statHashes["cpusystem"].to_f
             #cpuUser << statHashes["cpuuser"]
@@ -133,30 +141,7 @@ class StatsGen
             uptime << statHashes["systemuptime"] # this is the date the system started
         end
 
-        # svgStyle = 
-        # {
-        #     stroke: chartForegroundColor,
-        #     stroke_width: 2
-        # }
-        # chartHeight = 150
-        # chartWidth = 750
-        # # GeneratePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints)
-        # cpuPercentageChartTest = SVG.new(width: chartWidth, height: chartHeight)
-        # cpuPercentageChartTestPlotPoints = ""
-        # totalPoints = cpuUsed.length() - 1
-        # currentPoint = 0
-        # chartTitle = "CPU Percentage Load"
-        # cpuUsed.each do |value|
-        #     cpuPercentageChartTestPlotPoints += generatePlotPoints(chartHeight - 50, chartWidth, value, 100, currentPoint, totalPoints) + " "
-        #     currentPoint += 1
-        # end
-        # cpuPercentageChartTest.build do
-        #     rect(x:0, y: 0, width: chartWidth, height: chartHeight, fill: chartBackgroundColor)
-        #     polyline(points: cpuPercentageChartTestPlotPoints , style: svgStyle)
-        #     text(chartTitle, x: ((chartWidth / 2) - (6 * 25)) , y: 25, 
-        #          font_family: "sans", font_weight: "bold", font_size: 25, fill: chartForegroundColor)
-        # end
-
+        
         cpuPercentageChart = generateSVGChart(cpuUsed, chartWidth, chartHeight, 100,
                                                   chartBackgroundColor, chartForegroundColor)
         cpuPercentageChart.save(File.join(chartsSaveFolder, "cpuPercentChart.svg"))
@@ -244,7 +229,7 @@ class StatsGen
             fileStat = File::Stat.new(file)
             cutoffDate = (time - (@statCutoff)) #in seconds
             if fileStat.ctime < cutoffDate
-                Log.log("Deleting #{file} as part of log rotation.", 1)
+                Log.log("Deleting #{file} as part of log rotation.", 2)
                 File.delete(file)
             else
                 returnedArray << file
