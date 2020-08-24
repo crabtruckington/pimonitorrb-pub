@@ -197,6 +197,7 @@ class StatsGen
         htmlContent.gsub!("{cpuClockValue}", cpuClockSpeed[cpuClockSpeed.length() - 1].to_s)
         htmlContent.gsub!("{cpuTempValue}", cpuTemp[cpuTemp.length() - 1].to_s)
         htmlContent.gsub!("{memUsedValue}", memUsed[memUsed.length() - 1].to_i.to_s)
+        htmlContent.gsub!("{memTotalValue}", memTotal[0].to_s)
         htmlContent.gsub!("{driveUsedValue}", ((((driveUsedMB[driveUsedMB.length - 1].to_f / driveTotalMB[0].to_f) * 100).round(2)).to_s))
         htmlContent.gsub!("{driveKBReadsValue}", driveKBReads[driveKBReads.length() - 1].to_s)
         htmlContent.gsub!("{driveKBWritesValue}", driveKBWrites[driveKBWrites.length() - 1].to_s)
