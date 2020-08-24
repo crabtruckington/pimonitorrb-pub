@@ -49,7 +49,6 @@ loop do
     requestContent = socket.gets    
     path = sanitizeUserRequests(requestContent, socket.peeraddr)
     ServeRequest.serveRequest(socket, path)
-    GC.start()
   end
 end
 
