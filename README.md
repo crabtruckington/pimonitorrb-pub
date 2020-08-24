@@ -19,7 +19,7 @@ It is written in ruby and requires the `Victor` and `Minichart` svg generation g
 
 # Troubleshooting and Known Issues
 
-#### "stats" directory does not exist
+#### "some" directory does not exist
 For some reason, not every linux system will let you create directories when saving a file. Create the directory manually and make sure you have permissions to it.
 
 #### Nil value error in statgen.rb
