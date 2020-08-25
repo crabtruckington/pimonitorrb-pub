@@ -11,48 +11,60 @@ def sanitizeUserRequests(requestContent, ipAddr)
     request_uri  = requestContent.split(" ")[1]
     path = URI.unescape(URI(request_uri).path)  
     clean = []
-  
+
     parts = path.split("/")
   
     loggedDangerousRequest = 0
+    
     parts.each do |part|
-      if part.empty? 
+        if part.empty? 
         #do nothing
-      elsif part == "." || part == ".." || part == "..."
-        
-      #elsif part == ".."
-        #clean.pop   #im pretty sure I dont want to support this shit
-        if loggedDangerousRequest == 0
-          Log.log("User at #{ipAddr} made dangerous request: #{requestContent} , it was sanitized")
-          loggedDangerousRequest = 1
+        elsif (part == ".")
+        #again do nothing, this is the same directory            
+        elsif (part == ".." || part == "...") 
+            #we COULD pop off a directory but I dont see any good reason to support this
+            #instead we will log this as a probably attempt to scan for vulns, since
+            #100% of the instances I see doing this are just that
+            
+            #clean.pop   
+            if loggedDangerousRequest == 0
+                Log.log("User at #{ipAddr} made dangerous request: #{requestContent} , it was sanitized")
+                loggedDangerousRequest = 1
+            end
+        else
+            clean << part  
         end
-      else
-        clean << part  
-      end
-
-      #next if part.empty? || part == '.'
-      #part == '..' ? clean.pop : clean << part
     end
 
     File.join(WEB_ROOT, *clean)
 end
 
+
+
+
 t1 = Thread.new do
-  while true do
-    StatsGen.statsGenThread()
-    Log.log("Garbage collecting", 0)
-    GC.start()        
-  end
+    while true do
+        HTMLGen.htmlGenThread()
+        Log.log("Garbage collecting", 0)
+        GC.start()        
+    end
+end
+
+t2 = Thread.new do
+    while true do
+        GenerateStats.generateStats()
+        Log.log("Stats generated", 0)
+    end
 end
 
 server = TCPServer.new('localhost', 6689)
 
 loop do
-  #socket = server.accept
-  Thread.start(server.accept) do |socket|  
-    requestContent = socket.gets    
-    path = sanitizeUserRequests(requestContent, socket.peeraddr)
-    ServeRequest.serveRequest(socket, path)
-  end
+    #socket = server.accept
+    Thread.start(server.accept) do |socket|  
+        requestContent = socket.gets    
+        path = sanitizeUserRequests(requestContent, socket.peeraddr)
+        ServeRequest.serveRequest(socket, path)
+    end
 end
 

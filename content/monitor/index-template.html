@@ -9,6 +9,11 @@
         h4 {
             margin-bottom: 6px;
         }
+        .statgentime {
+            font-size: 12px;
+            color: #ffffff;
+            text-align: right;
+        }
     </style>
 </head>
 
@@ -30,7 +35,7 @@ Max Value: 2000 MHz
 <td></td>
 <td style="text-align: center; color:#ffffff; font-size: 12px;">
 <h4 style="text-align: center; color:#ffffff; font-size: 16px;">CPU Temp</h4>
-Max Value: 90C
+Max Value: 90°C
 </td>
 <td</td>
 </tr>
@@ -102,6 +107,7 @@ Max Value: 1,048,576 (1 Gb/s)
 </tbody>
 </table>
 <br>
-<h3 style="text-align: center; color:#ffffff">Uptime: {uptimeValueRaw}</h3>
+<h3 style="text-align: center; color:#ffffff; margin-bottom: -17px;">Uptime: {uptimeValueRaw}</h3>
+<p style="font-size: 12px; color: #ffffff; text-align: right; margin-top: 0px">Stats generated at: {generationtime}</p>
 </body>
 </html>
