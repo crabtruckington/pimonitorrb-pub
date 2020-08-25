@@ -1,4 +1,4 @@
-iostat -c | sed '4q;d' | awk '{print "cpuuser=" $1 "\r\n" "cpusystem=" $3 "\r\n" "cpuidle=" $6 }' #cpuusage
+cat <(grep "cpu " /proc/stat) <(sleep 1 && grep "cpu " /proc/stat) | awk -v RS="" '{ print "cpuused="($13-$2+$15-$4)*100/($13-$2+$15-$4+$16-$5) }' #cpuusage
 vcgencmd measure_clock arm  | awk -F "[=\']" '{print "cpuclockspeed=" $2/1000000}' #cpu speed
 vcgencmd measure_temp  | awk -F "[=\']" '{print "cputemp="$2}' #temperature
 cat /proc/meminfo | sed '3q' | awk '{print $1 $2}' | sed 's/:/=/' #memoryusage

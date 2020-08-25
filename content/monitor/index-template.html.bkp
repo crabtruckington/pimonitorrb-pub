@@ -41,11 +41,11 @@ Max Value: 90°C
 </tr>
 
 <tr>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuPercentChart.svg" alt="" /><br>Current CPU Usage: 6.55%</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuPercentChart.svg" alt="" /><br>Current CPU Usage: {cpuPercentValue}%</td>
 <td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuClockChart.svg" alt="" /><br>Current CPU Clockspeed: 666.0 MHz</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuClockChart.svg" alt="" /><br>Current CPU Clockspeed: {cpuClockValue} MHz</td>
 <td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuTempChart.svg" alt="" /><br>Current CPU Temperature: 38.0°C</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuTempChart.svg" alt="" /><br>Current CPU Temperature: {cpuTempValue}°C</td>
 <td></td>
 </tr>
 
@@ -68,11 +68,11 @@ Max Value: 409,600 (400 Mb/s)
 </tr>
     
 <tr>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/driveUsedChart.svg" alt="" /><br>Current Drive Space Used: 1.28%</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/driveUsedChart.svg" alt="" /><br>Current Drive Space Used: {driveUsedValue}%</td>
 <td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/drivesKBReadsChart.svg" alt="" /><br>Current Drive Reads (Kb/s): 6.87</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/drivesKBReadsChart.svg" alt="" /><br>Current Drive Reads (Kb/s): {driveKBReadsValue}</td>
 <td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/drivesKBWritesChart.svg" alt="" /><br>Current Drive Writes (Kb/s): 28.48</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/drivesKBWritesChart.svg" alt="" /><br>Current Drive Writes (Kb/s): {driveKBWritesValue}</td>
 <td></td>
 </tr>
 
@@ -80,7 +80,7 @@ Max Value: 409,600 (400 Mb/s)
 <tr>
 <td style="text-align: center; color:#ffffff; font-size: 12px;">
 <h4 style="text-align: center; color:#ffffff; font-size: 16px;">Memory Used</h4>
-Max Value (MB): 7922.25
+Max Value (MB): {memTotalValue}
 </td>
 <td></td>
 <td style="text-align: center; color:#ffffff; font-size: 12px;">
@@ -96,18 +96,18 @@ Max Value: 1,048,576 (1 Gb/s)
 </tr>
         
 <tr>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/memUsedChart.svg" alt="" /><br>Current Memory Used (MB): 4961</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/memUsedChart.svg" alt="" /><br>Current Memory Used (MB): {memUsedValue}</td>
 <td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/networkTrafficInChart.svg" alt="" /><br>Current Network Traffic (Kb/s): 0.0</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/networkTrafficInChart.svg" alt="" /><br>Current Network Traffic (Kb/s): {currentNetInValue}</td>
 <td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/networkTrafficOutChart.svg" alt="" /><br>Current Network Traffic (Kb/s): 1.7</td>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/networkTrafficOutChart.svg" alt="" /><br>Current Network Traffic (Kb/s): {currentNetOutValue}</td>
 <td></td>
 </tr>
     
 </tbody>
 </table>
 <br>
-<h3 style="text-align: center; color:#ffffff; margin-bottom: -17px;">Uptime: 1 day, 11 hours, 4 minutes</h3>
-<p style="font-size: 12px; color: #ffffff; text-align: right; margin-top: 0px">Stats generated at: 2020-08-25 13:36:16</p>
+<h3 style="text-align: center; color:#ffffff; margin-bottom: -17px;">Uptime: {uptimeValueRaw}</h3>
+<p style="font-size: 12px; color: #ffffff; text-align: right; margin-top: 0px">Stats generated at: {generationtime}</p>
 </body>
 </html>

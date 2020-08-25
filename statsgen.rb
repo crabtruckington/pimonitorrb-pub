@@ -1,28 +1,42 @@
 require "minichart"
 require "victor"
+require "shellwords"
 require_relative "logging"
 
 class GenerateStats
     def self.generateStats()
-        statsGenInterval = 5
+        statsGenInterval = 1
         time = Time.new
         statsTime = time.strftime("%Y%m%d%H%M%S%L")
         statsDir = "./monitorstatgen/stats/"
         
+        #you want to do this check every time, because its entirely possible
+        #that a user has come by and deleted the directory
         Dir.mkdir(statsDir) unless Dir.exist?(statsDir)
         
-        system("./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt")
+        #system("./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt")
+        cmd = "./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt"
+        bash(cmd)
+
+        profilerTime = Time.new
         if (Dir[File.join(statsDir + "/**/*")].length <= 1)
+            profilerTime = (Time.new - profilerTime)
+            bp1 = "test"
             # we need at least 2 stats file to generate a graph
             sleep(1)
             time = Time.new
             statsTime = time.strftime("%Y%m%d%H%M%S%L")
-            system("./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt")
+            #system("./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt")
+            bash(cmd)
         end
         sleep(statsGenInterval)
     end
-end
 
+    def self.bash(command)
+        escapedCommand = Shellwords.escape(command)
+        system "bash -c #{escapedCommand}"
+    end
+end
 
 class HTMLGen
     include Minichart
@@ -53,7 +67,13 @@ class HTMLGen
         plotPointXSteps = (chartWidth.to_f / totalPoints.to_f)
         plotPointVerticalSteps = (chartHeight.to_f / maxValue.to_f)
 
+        begin
+
         plotPoint = (currentPoint * plotPointXSteps).to_i.to_s + "," + (chartHeight - (value * plotPointVerticalSteps)).to_i.to_s
+
+        rescue Exception => e
+            puts e
+        end
 
         return plotPoint
     end
@@ -79,9 +99,14 @@ class HTMLGen
         bottomMarkersXInterval = chartWidth / 30
         bottomMarkersY = chartHeight - 5
 
-        valueArray.each do |value|
-            chartPlotPoints += generatePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints) + " "
-            currentPoint += 1
+        begin
+            valueArray.each do |value|
+                chartPlotPoints += generatePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints) + " "
+                currentPoint += 1
+            end
+
+        rescue Exception => e
+            puts e
         end
         chart.build do
             rect(x:0, y: 0, width: chartWidth, height: chartHeight, fill: chartBackgroundColor)
@@ -111,41 +136,44 @@ class HTMLGen
         chartBackgroundColor = "#1f3445"
         chartForegroundColor = "#3899e8"
         chartsSaveFolder = "./content/monitor/images"
-        cpuUsed = Array.new #cpuUsed is a combination of User and System to get total percentage load
-        #cpuUser = Array.new
-        #cpuSystem = Array.new
-        cpuIdle = Array.new
+
+        cpuUsed = Array.new
         cpuClockSpeed = Array.new
         cpuTemp = Array.new
         memUsed = Array.new #memUsed is a combination of memTotal - memAvailable
-        memTotal = Array.new
-        #memFree = Array.new
-        #memAvailable = Array.new
-        driveTotalMB = Array.new
         driveUsedMB = Array.new
         driveAvailableMB = Array.new
         driveKBReads = Array.new
         driveKBWrites = Array.new
         networkKBIn = Array.new
         networkKBOut = Array.new
-        uptime = Array.new
+        
         cpuUsedAggregate = 0.0
         cpuClockSpeedAggregate = 0.0
         cpuTempAggregate = 0.0
         memUsedAggregate = 0.0
-        memTotalAggregate = 0.0    
-        driveTotalAggregate = 0.0 
         driveUsedMBAggregate = 0.0
         driveKBReadsAggregate = 0.0
         driveKBWritesAggregate = 0.0
         networkKBInAggregate = 0.0
         networkKBOutAggregate = 0.0
-        uptimeAggregate = 0.0   
         aggregateLoopCount = 0     
 
+        #these are used to hold the most current value for display in the html
+        currentCPUUsed = 0.0
+        currentCPUClockSpeed = 0.0
+        currentCPUTemp = 0.0
+        currentMemUsed = 0.0
+        currentMemTotal = 0.0    
+        currentDriveTotal = 0.0 
+        currentDriveUsedMB = 0.0
+        currentDriveKBRead = 0.0
+        currentDriveKBWrites = 0.0
+        currentNetworkKBIn = 0.0
+        currentNetworkKBOut = 0.0
+        currentUptime = ""           
 
-        Dir.mkdir(chartsSaveFolder) unless Dir.exist?(chartsSaveFolder)
-        
+        Dir.mkdir(chartsSaveFolder) unless Dir.exist?(chartsSaveFolder)        
         
         aggregateCount = parsedStatArray.length / 60
         if (parsedStatArray.length % 60 != 0)
@@ -153,12 +181,9 @@ class HTMLGen
         end
         if (aggregateCount < 1)
            aggregateCount = 1
-        end
-
-
-        
+        end        
         parsedStatArray.each do |statHashes|
-            cpuUsedAggregate += statHashes["cpuuser"].to_f + statHashes["cpusystem"].to_f
+            cpuUsedAggregate += statHashes["cpuused"].to_f
             cpuClockSpeedAggregate += statHashes["cpuclockspeed"].to_f
             cpuTempAggregate += statHashes["cputemp"].to_f
             memUsedAggregate += ((statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024)
@@ -169,12 +194,21 @@ class HTMLGen
             networkKBOutAggregate += statHashes["networkkbout"].to_f
 
             #these are intentionally = and not += so we just take the last value provided
-            memTotalAggregate = (statHashes["MemTotal"].to_f / 1024)
-            driveTotalAggregate = statHashes["drivetotalmb"].to_f
-            uptimeAggregate = statHashes["systemuptime"]
-
+            currentCPUUsed = statHashes["cpuused"].to_f
+            currentCPUClockSpeed = statHashes["cpuclockspeed"].to_f
+            currentCPUTemp = statHashes["cputemp"].to_f
+            currentMemUsed = ((statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024)
+            currentDriveUsedMB = statHashes["driveusedmb"].to_f
+            currentDriveKBRead = statHashes["drivekbreads"].to_f
+            currentDriveKBWrites = statHashes["drivekbwrites"].to_f
+            currentNetworkKBIn = statHashes["networkkbin"].to_f
+            currentNetworkKBOut = statHashes["networkkbout"].to_f
+            currentMemTotal = (statHashes["MemTotal"].to_f / 1024)
+            currentDriveTotal = statHashes["drivetotalmb"].to_f
+            currentUptime = statHashes["systemuptime"]
             
             aggregateLoopCount += 1
+            #if we have enough aggregate values, get average now
             if (aggregateLoopCount == aggregateCount)
                 cpuUsed << (cpuUsedAggregate / aggregateCount)
                 cpuClockSpeed << (cpuClockSpeedAggregate / aggregateCount)
@@ -199,6 +233,7 @@ class HTMLGen
                 aggregateLoopCount = 0
             end
         end
+        #if we had any remaining values, average them now
         if (aggregateLoopCount != 0)
             cpuUsed << (cpuUsedAggregate / aggregateLoopCount)
             cpuClockSpeed << (cpuClockSpeedAggregate / aggregateLoopCount)
@@ -209,44 +244,25 @@ class HTMLGen
             driveKBWrites << (driveKBWritesAggregate / aggregateLoopCount)
             networkKBIn << (networkKBInAggregate / aggregateLoopCount)
             networkKBOut << (networkKBOutAggregate / aggregateLoopCount)
-        end
-        # feed in the singleton values
-        memTotal << memTotalAggregate 
-        driveTotalMB << driveTotalAggregate
-        uptime << uptimeAggregate
-
-            # cpuUsed << statHashes["cpuuser"].to_f + statHashes["cpusystem"].to_f
-            # cpuClockSpeed << statHashes["cpuclockspeed"].to_f
-            # cpuTemp << statHashes["cputemp"].to_f
-            # memUsed << (statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024 #in MB
-            # #memTotal << (statHashes["MemTotal"].to_f / 1024)
-            # #driveTotalMB << statHashes["drivetotalmb"].to_f
-            # driveUsedMB << statHashes["driveusedmb"].to_f
-            # driveKBReads << statHashes["drivekbreads"].to_f
-            # driveKBWrites << statHashes["drivekbwrites"].to_f
-            # networkKBIn << statHashes["networkkbin"].to_f
-            # networkKBOut << statHashes["networkkbout"].to_f
-            # #uptime << statHashes["systemuptime"] # this is the date the system started
-        # end
-
+        end        
         
         cpuPercentageChart = generateSVGChart(cpuUsed, chartWidth, chartHeight, 100,
-                                                  chartBackgroundColor, chartForegroundColor)
+                                              chartBackgroundColor, chartForegroundColor)
         cpuPercentageChart.save(File.join(chartsSaveFolder, "cpuPercentChart.svg"))
 
         cpuClockChart = generateSVGChart(cpuClockSpeed, chartWidth, chartHeight, 2000, 
-                                             chartBackgroundColor, chartForegroundColor)
+                                         chartBackgroundColor, chartForegroundColor)
         cpuClockChart.save(File.join(chartsSaveFolder, "cpuClockChart.svg"))
         
         cpuTempChart = generateSVGChart(cpuTemp, chartWidth, chartHeight, 90,
                                         chartBackgroundColor, chartForegroundColor)
         cpuTempChart.save(File.join(chartsSaveFolder, "cpuTempChart.svg"))
 
-        memUsedChart = generateSVGChart(memUsed, chartWidth, chartHeight, memTotal[0],
+        memUsedChart = generateSVGChart(memUsed, chartWidth, chartHeight, currentMemTotal,
                                         chartBackgroundColor, chartForegroundColor)
         memUsedChart.save(File.join(chartsSaveFolder, "memUsedChart.svg"))
 
-        driveUsedChart = generateSVGChart(driveUsedMB, chartWidth, chartHeight, driveTotalMB[0],
+        driveUsedChart = generateSVGChart(driveUsedMB, chartWidth, chartHeight, currentDriveTotal,
                                           chartBackgroundColor, chartForegroundColor)
         driveUsedChart.save(File.join(chartsSaveFolder, "driveUsedChart.svg"))
 
@@ -267,31 +283,33 @@ class HTMLGen
         networkTrafficOutChart.save(File.join(chartsSaveFolder, "networkTrafficOutChart.svg"))
 
 
-        mergeAndUpdateHTML(cpuUsed, cpuClockSpeed, cpuTemp, memUsed, memTotal, driveTotalMB, driveUsedMB, driveAvailableMB,
-                           driveKBReads, driveKBWrites, networkKBIn, networkKBOut, uptime)
+        mergeAndUpdateHTML(currentCPUUsed, currentCPUClockSpeed, currentCPUTemp, currentMemUsed, currentMemTotal,
+                           currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
+                           currentNetworkKBIn, currentNetworkKBOut, currentUptime)
 
     end
 
   
 
-    def self.mergeAndUpdateHTML(cpuUsed, cpuClockSpeed, cpuTemp, memUsed, memTotal, driveTotalMB, driveUsedMB, driveAvailableMB,
-                                driveKBReads, driveKBWrites, networkKBIn, networkKBOut, uptime)
+    def self.mergeAndUpdateHTML(currentCPUUsed, currentCPUClockSpeed, currentCPUTemp, currentMemUsed, currentMemTotal,
+                                currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
+                                currentNetworkKBIn, currentNetworkKBOut, currentUptime)
         
         indexLocation = "./content/monitor/index.html"
         indexTemplateLocation = "./content/monitor/index-template.html"
         htmlContent = File.read(indexTemplateLocation)
 
-        htmlContent.gsub!("{cpuPercentValue}", (cpuUsed[cpuUsed.length() - 1].round(2)).to_s)
-        htmlContent.gsub!("{cpuClockValue}", (cpuClockSpeed[cpuClockSpeed.length() - 1].round(2)).to_s)
-        htmlContent.gsub!("{cpuTempValue}", (cpuTemp[cpuTemp.length() - 1].round(2)).to_s)
-        htmlContent.gsub!("{memUsedValue}", memUsed[memUsed.length() - 1].to_i.to_s)
-        htmlContent.gsub!("{memTotalValue}", (memTotal[0].round(2)).to_s)
-        htmlContent.gsub!("{driveUsedValue}", ((((driveUsedMB[driveUsedMB.length - 1].to_f / driveTotalMB[0].to_f) * 100).round(2)).to_s))
-        htmlContent.gsub!("{driveKBReadsValue}", (driveKBReads[driveKBReads.length() - 1].round(2)).to_s)
-        htmlContent.gsub!("{driveKBWritesValue}", (driveKBWrites[driveKBWrites.length() - 1].round(2)).to_s)
-        htmlContent.gsub!("{currentNetInValue}", (networkKBIn[networkKBIn.length() - 1].round(2)).to_s)
-        htmlContent.gsub!("{currentNetOutValue}", (networkKBOut[networkKBOut.length() - 1].round(2)).to_s)
-        htmlContent.gsub!("{uptimeValueRaw}", uptime[0].to_s.gsub("up ", ""))
+        htmlContent.gsub!("{cpuPercentValue}", (currentCPUUsed.round(2)).to_s)
+        htmlContent.gsub!("{cpuClockValue}", (currentCPUClockSpeed.round(2)).to_s)
+        htmlContent.gsub!("{cpuTempValue}", (currentCPUTemp.round(2)).to_s)
+        htmlContent.gsub!("{memUsedValue}", currentMemUsed.to_i.to_s)
+        htmlContent.gsub!("{memTotalValue}", (currentMemTotal.round(2)).to_s)
+        htmlContent.gsub!("{driveUsedValue}", ((((currentDriveUsedMB.to_f / currentDriveTotal.to_f) * 100).round(2)).to_s))
+        htmlContent.gsub!("{driveKBReadsValue}", (currentDriveKBRead.round(2)).to_s)
+        htmlContent.gsub!("{driveKBWritesValue}", (currentDriveKBWrites.round(2)).to_s)
+        htmlContent.gsub!("{currentNetInValue}", (currentNetworkKBIn.round(2)).to_s)
+        htmlContent.gsub!("{currentNetOutValue}", (currentNetworkKBOut.round(2)).to_s)
+        htmlContent.gsub!("{uptimeValueRaw}", currentUptime.to_s.gsub("up ", ""))
         htmlContent.gsub!("{generationtime}", Time.new.strftime("%Y-%m-%d %H:%M:%S"))
 
         File.write(indexLocation, htmlContent)

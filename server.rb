@@ -40,22 +40,37 @@ def sanitizeUserRequests(requestContent, ipAddr)
 end
 
 
-
-
 t1 = Thread.new do
-    while true do
-        HTMLGen.htmlGenThread()
-        Log.log("Garbage collecting", 0)
-        GC.start()        
-    end
-end
+    loopCount = 0
+    genStatsPageEveryX = 30
+    #generate stats on startup, then do it every X stats loops
+    
+    GenerateStats.generateStats()
+    Log.log("Stats generated", 0)
+    HTMLGen.htmlGenThread()
 
-t2 = Thread.new do
     while true do
         GenerateStats.generateStats()
         Log.log("Stats generated", 0)
+        loopCount += 1
+        if (loopCount == genStatsPageEveryX)
+            HTMLGen.htmlGenThread()
+            Log.log("Garbage Collecting", 1)
+            GC.start()
+            loopCount = 0
+        end
     end
 end
+
+
+# t2 = Thread.new do
+#     while true do
+#         HTMLGen.htmlGenThread()
+#         Log.log("Garbage collecting", 0)
+#         GC.start()        
+#     end
+# end
+
 
 server = TCPServer.new('localhost', 6689)
 
