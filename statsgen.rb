@@ -6,27 +6,27 @@ require_relative "logging"
 class GenerateStats
     def self.generateStats()
         statsGenInterval = 1
-        time = Time.new
-        statsTime = time.strftime("%Y%m%d%H%M%S%L")
+        statsTime = Time.new.strftime("%Y%m%d%H%M%S%L")
         statsDir = "./monitorstatgen/stats/"
+        cmd = "./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt"
         
         #you want to do this check every time, because its entirely possible
         #that a user has come by and deleted the directory
         Dir.mkdir(statsDir) unless Dir.exist?(statsDir)
         
-        #system("./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt")
-        cmd = "./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt"
         bash(cmd)
 
         profilerTime = Time.new
         if (Dir[File.join(statsDir + "/**/*")].length <= 1)
+            # we need at least 2 stats file to generate a graph
+            #you can set a breakpoint here or puts out the time to see how long the above "if" takes
+            #mostly this was used to profile huge directories (24k files) to see how long it takes
+            #to ask the file system for a count. It doesnt take long on ext4 partitions, <100ms
             profilerTime = (Time.new - profilerTime)
             bp1 = "test"
-            # we need at least 2 stats file to generate a graph
             sleep(1)
-            time = Time.new
-            statsTime = time.strftime("%Y%m%d%H%M%S%L")
-            #system("./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt")
+            statsTime = Time.new.strftime("%Y%m%d%H%M%S%L")
+            cmd = "./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt"
             bash(cmd)
         end
         sleep(statsGenInterval)
@@ -68,8 +68,13 @@ class HTMLGen
         plotPointVerticalSteps = (chartHeight.to_f / maxValue.to_f)
 
         begin
-
-        plotPoint = (currentPoint * plotPointXSteps).to_i.to_s + "," + (chartHeight - (value * plotPointVerticalSteps)).to_i.to_s
+            pointX = (currentPoint * plotPointXSteps).to_i
+            pointY = (chartHeight + 1 - (value * plotPointVerticalSteps)).to_i
+            if (pointY <= 0)
+                pointY = 1
+            end
+            #chartHeight + 1 because we want the 2px stroke to ride the top of the chart
+            plotPoint = (pointX).to_s + "," + (pointY).to_s
 
         rescue Exception => e
             puts e
@@ -101,7 +106,8 @@ class HTMLGen
 
         begin
             valueArray.each do |value|
-                chartPlotPoints += generatePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints) + " "
+                #chartHeight - 1 because we want the 2px stroke to ride the top of the chart
+                chartPlotPoints += generatePlotPoints(chartHeight - 1, chartWidth, value, maxValue, currentPoint, totalPoints) + " "
                 currentPoint += 1
             end
 
@@ -111,7 +117,8 @@ class HTMLGen
         chart.build do
             rect(x:0, y: 0, width: chartWidth, height: chartHeight, fill: chartBackgroundColor)
             polyline(points: chartPlotPoints , style: svgStyle)
-            line(x1: rightMarkersX, y1: rightMarkersYInterval * 0, x2: chartWidth, y2: rightMarkersYInterval * 0, style: markerStyle )
+            #the first x marker needs to sit at 1, not 0, so the whole thing shows in the chart
+            line(x1: rightMarkersX, y1: 1,                         x2: chartWidth, y2: 1,                         style: markerStyle )
             line(x1: rightMarkersX, y1: rightMarkersYInterval * 1, x2: chartWidth, y2: rightMarkersYInterval * 1, style: markerStyle )
             line(x1: rightMarkersX, y1: rightMarkersYInterval * 2, x2: chartWidth, y2: rightMarkersYInterval * 2, style: markerStyle )
             line(x1: rightMarkersX, y1: rightMarkersYInterval * 3, x2: chartWidth, y2: rightMarkersYInterval * 3, style: markerStyle )
