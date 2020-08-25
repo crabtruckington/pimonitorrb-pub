@@ -41,7 +41,7 @@ end
 class HTMLGen
     include Minichart
     include Victor
-    @htmlGenInterval = 60 #in seconds
+    # @htmlGenInterval = 60 #in seconds
     @statCutoff = (60 * 60 * 48) #(60 * 60 * 1) #in seconds
     @statsDir = "./monitorstatgen/stats/"
 
@@ -58,9 +58,9 @@ class HTMLGen
         parsedStatArray = parseStatFiles(fileArray)
         Log.log("Generating HTML content and images", 0)
         generateStatHTML(parsedStatArray)
-        Log.log("HTML generation sleeping for #{@htmlGenInterval}", 0)
-        #sleep before exiting
-        sleep(@htmlGenInterval)
+        # Log.log("HTML generation sleeping for #{@htmlGenInterval}", 0)
+        # #sleep before exiting
+        # sleep(@htmlGenInterval)
     end
 
     def self.generatePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints)
