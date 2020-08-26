@@ -19,36 +19,63 @@
 
 <!color:#61aeec>
 <body>
-<h1 style="text-align: center; color:#ffffff">Pi Monitor</h1>
-<table style="width: 90%; margin-left: auto; margin-right: auto;">
+<h2 style="text-align: left; color:#ffffff; margin-bottom: -29px;">Pi Monitor</h2>
+
+
+<table style="width: 1700px; margin-left: auto; margin-right: auto; margin-top: 0px;">
 <tbody>
 <tr>
 <td style="text-align: center; color:#ffffff; font-size: 12px;">
-<h4 style="text-align: center; color:#ffffff; font-size: 16px;">CPU Usage</h4>
+<h4 style="text-align: center; color:#ffffff; font-size: 16px; margin-top: 0px;">CPU Usage</h4>
 Max Value: 100%
 </td>
-<td></td>
-<td style="text-align: center; color:#ffffff; font-size: 12px;">
-<h4 style="text-align: center; color:#ffffff; font-size: 16px;">CPU Clock Speed</h4>
+<tr>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuPercentChart.svg" alt="" /><br>Current CPU Usage: {cpuPercentValue}%</td>
+</tr>
+</tbody>
+</table>
+
+<table style="width: 1700px; margin-left: auto; margin-right: auto;">
+<tbody>
+<tr>
+<td style="text-align: center; color:#ffffff; font-size: 12px; padding-left: 0px; padding-right: 0px; width: 825px;">
+<h4 style="text-align: center; color:#ffffff; font-size: 16px; margin-top: 2px;">CPU Clock Speed</h4>
 Max Value: 2000 MHz
 </td>
-<td></td>
-<td style="text-align: center; color:#ffffff; font-size: 12px;">
-<h4 style="text-align: center; color:#ffffff; font-size: 16px;">CPU Temp</h4>
+<td style="width: 50px; padding-left: 0px; padding-right: 0px;"></td>
+<td style="text-align: center; color:#ffffff; font-size: 12px; padding-left: 0px; padding-right: 0px; width: 825px;">
+<h4 style="text-align: center; color:#ffffff; font-size: 16px; margin-top: 2px;">CPU Temp</h4>
 Max Value: 90°C
 </td>
-<td</td>
 </tr>
 
 <tr>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuPercentChart.svg" alt="" /><br>Current CPU Usage: {cpuPercentValue}%</td>
-<td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuClockChart.svg" alt="" /><br>Current CPU Clockspeed: {cpuClockValue} MHz</td>
-<td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/cpuTempChart.svg" alt="" /><br>Current CPU Temperature: {cpuTempValue}°C</td>
-<td></td>
+<td style="text-align: center; color:#ffffff; padding-left: 0px; padding-right: 0px; width: 825px;"><img src="./monitor/images/cpuClockChart.svg" alt="" /><br>Current CPU Clockspeed: {cpuClockValue} MHz</td>
+<td style="width: 50px; padding-left: 0px; padding-right: 0px;"></td>
+<td style="text-align: center; color:#ffffff; padding-left: 0px; padding-right: 0px; width: 825px;"><img src="./monitor/images/cpuTempChart.svg" alt="" /><br>Current CPU Temperature: {cpuTempValue}°C</td>
+</tr>
+</tbody>
+</table>
+
+<table style="width: 1700px; margin-left: auto; margin-right: auto;">
+<tbody>
+<tr>
+<td style="text-align: center; color:#ffffff; font-size: 12px;">
+<h4 style="text-align: center; color:#ffffff; font-size: 16px; margin-top: 2px">Memory Used</h4>
+Max Value (MB): {memTotalValue}
+</td>
 </tr>
 
+<tr>
+<td style="text-align: center; color:#ffffff""><img src="./monitor/images/memUsedChart.svg" alt="" /><br>Current Memory Used (MB): {memUsedValue}</td>
+</tr>
+</tbody>
+</table>
+
+
+
+<table style="width: 1700px; margin-left: auto; margin-right: auto;">
+<tbody>
 <tr>
 <td style="text-align: center; color:#ffffff; font-size: 12px;">
 <h4 style="text-align: center; color:#ffffff; font-size: 16px;">Drive Space Used</h4>
@@ -64,44 +91,28 @@ Max Value: 409,600 (400 Mb/s)
 <h4 style="text-align: center; color:#ffffff; font-size: 16px;">Drive Writes (Kb/s)</h4>
 Max Value: 409,600 (400 Mb/s)
 </td>
-<td</td>
+<td></td>
+<td style="text-align: center; color:#ffffff; font-size: 12px;">
+<h4 style="text-align: center; color:#ffffff; font-size: 16px;">Network Traffic In (Kb/s)</h4>
+Max Value: 1,048,576 (1 Gb/s)
+</td>
+<td></td>
+<td style="text-align: center; color:#ffffff; font-size: 12px;">
+<h4 style="text-align: center; color:#ffffff; font-size: 16px;">Network Traffic Out (Kb/s)</h4>
+Max Value: 1,048,576 (1 Gb/s)
+</td>    
 </tr>
     
 <tr>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/driveUsedChart.svg" alt="" /><br>Current Drive Space Used: {driveUsedValue}%</td>
+<td style="text-align: center; color:#ffffff; font-size: 14px;"><img src="./monitor/images/driveUsedChart.svg" alt="" /><br>Current Drive Space Used: {driveUsedValue}%</td>
 <td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/drivesKBReadsChart.svg" alt="" /><br>Current Drive Reads (Kb/s): {driveKBReadsValue}</td>
+<td style="text-align: center; color:#ffffff; font-size: 14px;"><img src="./monitor/images/drivesKBReadsChart.svg" alt="" /><br>Current Drive Reads (Kb/s): {driveKBReadsValue}</td>
 <td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/drivesKBWritesChart.svg" alt="" /><br>Current Drive Writes (Kb/s): {driveKBWritesValue}</td>
+<td style="text-align: center; color:#ffffff; font-size: 14px;"><img src="./monitor/images/drivesKBWritesChart.svg" alt="" /><br>Current Drive Writes (Kb/s): {driveKBWritesValue}</td>
 <td></td>
-</tr>
-
-
-<tr>
-<td style="text-align: center; color:#ffffff; font-size: 12px;">
-<h4 style="text-align: center; color:#ffffff; font-size: 16px;">Memory Used</h4>
-Max Value (MB): {memTotalValue}
-</td>
+<td style="text-align: center; color:#ffffff; font-size: 14px;"><img src="./monitor/images/networkTrafficInChart.svg" alt="" /><br>Current Network Traffic (Kb/s): {currentNetInValue}</td>
 <td></td>
-<td style="text-align: center; color:#ffffff; font-size: 12px;">
-<h4 style="text-align: center; color:#ffffff; font-size: 16px;">Network Traffic In (KB/s)</h4>
-Max Value: 1,048,576 (1 Gb/s)
-</td>
-<td></td>
-<td style="text-align: center; color:#ffffff; font-size: 12px;">
-<h4 style="text-align: center; color:#ffffff; font-size: 16px;">Network Traffic Out (KB/s)</h4>
-Max Value: 1,048,576 (1 Gb/s)
-</td>
-<td</td>
-</tr>
-        
-<tr>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/memUsedChart.svg" alt="" /><br>Current Memory Used (MB): {memUsedValue}</td>
-<td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/networkTrafficInChart.svg" alt="" /><br>Current Network Traffic (Kb/s): {currentNetInValue}</td>
-<td></td>
-<td style="text-align: center; color:#ffffff""><img src="./monitor/images/networkTrafficOutChart.svg" alt="" /><br>Current Network Traffic (Kb/s): {currentNetOutValue}</td>
-<td></td>
+<td style="text-align: center; color:#ffffff; font-size: 14px;"><img src="./monitor/images/networkTrafficOutChart.svg" alt="" /><br>Current Network Traffic (Kb/s): {currentNetOutValue}</td>
 </tr>
     
 </tbody>

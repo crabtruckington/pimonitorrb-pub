@@ -45,10 +45,7 @@ class HTMLGen
     @statCutoff = (60 * 60 * 48) #(60 * 60 * 1) #in seconds
     @statsDir = "./monitorstatgen/stats/"
 
-
     def self.htmlGenThread()
-        time = Time.new
-        statsTime = time.strftime("%Y%m%d%H%M%S%L")
         fileArray = Array.new
         parsedStatArray = Array.new
         
@@ -62,6 +59,252 @@ class HTMLGen
         # #sleep before exiting
         # sleep(@htmlGenInterval)
     end
+
+    def self.rotateStatsAndGenerateStatArray()
+        time = Time.new
+        txtFiles = File.join(@statsDir, "*.txt")
+        returnedArray = Array.new
+        Dir.glob(txtFiles) do |file|
+            fileStat = File::Stat.new(file)
+            cutoffDate = (time - (@statCutoff)) #in seconds
+            if fileStat.ctime < cutoffDate
+                Log.log("Deleting #{file} as part of log rotation.", 2)
+                File.delete(file)
+            else
+                returnedArray << file
+            end
+        end
+
+        return returnedArray.sort()
+    end
+
+    def self.parseStatFiles(fileArray)
+        statArray = Array.new
+        fileArray.each do |file|
+            statHash = Hash.new
+            IO.foreach(file) do |line|
+                statValues = line.chomp.split("=")
+                statHash[statValues[0].to_s] = statValues[1]
+            end
+            statArray << statHash
+        end
+
+        return statArray
+    end
+
+
+    def self.generateStatHTML(parsedStatArray)
+        #chartHeight = 175
+        #chartWidth = 525
+        chartHeightSmall = 100
+        chartWidthSmall = 315
+        chartHeightMedium = 125
+        chartWidthMedium = 825
+        chartHeightLarge = 150
+        chartWidthLarge = 1700
+
+        chartBackgroundColor = "#1f3445"
+        chartForegroundColor = "#3899e8"
+        chartsSaveFolder = "./content/monitor/images"
+        parsedStatArrayLength = parsedStatArray.length
+
+        cpuUsed = Array.new
+        cpuClockSpeed = Array.new
+        cpuTemp = Array.new
+        memUsed = Array.new #memUsed is a combination of memTotal - memAvailable
+        driveUsedMB = Array.new
+        driveAvailableMB = Array.new
+        driveKBReads = Array.new
+        driveKBWrites = Array.new
+        networkKBIn = Array.new
+        networkKBOut = Array.new
+        
+        cpuUsedAggregate = 0.0
+        cpuClockSpeedAggregate = 0.0
+        cpuTempAggregate = 0.0
+        memUsedAggregate = 0.0
+        driveUsedMBAggregate = 0.0
+        driveKBReadsAggregate = 0.0
+        driveKBWritesAggregate = 0.0
+        networkKBInAggregate = 0.0
+        networkKBOutAggregate = 0.0
+        aggregateLoopCountSmall = 0
+        aggregateLoopCountMedium = 0
+        aggregateLoopCountLarge = 0
+
+        #these are used to hold the most current value for display in the html
+        currentCPUUsed = 0.0
+        currentCPUClockSpeed = 0.0
+        currentCPUTemp = 0.0
+        currentMemUsed = 0.0
+        currentMemTotal = 0.0    
+        currentDriveTotal = 0.0 
+        currentDriveUsedMB = 0.0
+        currentDriveKBRead = 0.0
+        currentDriveKBWrites = 0.0
+        currentNetworkKBIn = 0.0
+        currentNetworkKBOut = 0.0
+        currentUptime = ""           
+        
+        aggregateSizeSmall = 78 # 40 # 42 is a point ~ every 8.75 pixels
+        aggregateSizeMedium =  205 # 91
+        aggregateSizeLarge = 425 # 208
+        
+        aggregateCountSmall = parsedStatArrayLength / aggregateSizeSmall
+        aggregateCountMedium = parsedStatArrayLength / aggregateSizeMedium
+        aggregateCountLarge = parsedStatArrayLength / aggregateSizeLarge
+
+        if (parsedStatArray.length % aggregateSizeSmall != 0)
+            aggregateCountSmall += 1
+        end
+        if (aggregateCountSmall < 1)
+           aggregateCountSmall = 1
+        end
+
+        if (parsedStatArray.length % aggregateSizeMedium != 0)
+            aggregateCountMedium += 1
+        end
+        if (aggregateCountMedium < 1)
+           aggregateCountMedium = 1
+        end
+
+        if (parsedStatArray.length % aggregateSizeLarge != 0)
+            aggregateCountLarge += 1
+        end
+        if (aggregateCountLarge < 1)
+           aggregateCountLarge = 1
+        end
+
+        Dir.mkdir(chartsSaveFolder) unless Dir.exist?(chartsSaveFolder)  
+        
+        parsedStatArray.each_with_index do |statHashes, index|
+            cpuUsedAggregate += statHashes["cpuused"].to_f
+            cpuClockSpeedAggregate += statHashes["cpuclockspeed"].to_f
+            cpuTempAggregate += statHashes["cputemp"].to_f
+            memUsedAggregate += ((statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024)
+            driveUsedMBAggregate += statHashes["driveusedmb"].to_f
+            driveKBReadsAggregate += statHashes["drivekbreads"].to_f
+            driveKBWritesAggregate += statHashes["drivekbwrites"].to_f
+            networkKBInAggregate += statHashes["networkkbin"].to_f
+            networkKBOutAggregate += statHashes["networkkbout"].to_f
+
+            #we only want the last value
+            if (index == parsedStatArrayLength - 1)
+                currentCPUUsed = statHashes["cpuused"].to_f
+                currentCPUClockSpeed = statHashes["cpuclockspeed"].to_f
+                currentCPUTemp = statHashes["cputemp"].to_f
+                currentMemUsed = ((statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024)
+                currentDriveUsedMB = statHashes["driveusedmb"].to_f
+                currentDriveKBRead = statHashes["drivekbreads"].to_f
+                currentDriveKBWrites = statHashes["drivekbwrites"].to_f
+                currentNetworkKBIn = statHashes["networkkbin"].to_f
+                currentNetworkKBOut = statHashes["networkkbout"].to_f
+                currentMemTotal = (statHashes["MemTotal"].to_f / 1024)
+                currentDriveTotal = statHashes["drivetotalmb"].to_f
+                currentUptime = statHashes["systemuptime"]
+            end
+
+            aggregateLoopCountSmall += 1
+            aggregateLoopCountMedium += 1
+            aggregateLoopCountLarge += 1
+            #if we have enough aggregate values, get average now
+            if (aggregateLoopCountLarge == aggregateCountLarge)
+                cpuUsed << (cpuUsedAggregate / aggregateCountLarge)
+                memUsed << (memUsedAggregate / aggregateCountLarge)
+                
+                cpuUsedAggregate = 0.0
+                memUsedAggregate = 0.0
+                
+                aggregateLoopCountLarge = 0
+            end
+            if (aggregateLoopCountMedium == aggregateCountMedium)
+                cpuClockSpeed << (cpuClockSpeedAggregate / aggregateCountMedium)
+                cpuTemp << (cpuTempAggregate / aggregateCountMedium)
+                cpuClockSpeedAggregate = 0.0
+                cpuTempAggregate = 0.0
+                
+                aggregateLoopCountMedium = 0
+            end
+            if (aggregateLoopCountSmall == aggregateCountSmall)
+                driveUsedMB << (driveUsedMBAggregate / aggregateCountSmall)
+                driveKBReads << (driveKBReadsAggregate / aggregateCountSmall)
+                driveKBWrites << (driveKBWritesAggregate / aggregateCountSmall)
+                networkKBIn << (networkKBInAggregate / aggregateCountSmall)
+                networkKBOut << (networkKBOutAggregate / aggregateCountSmall)
+                driveUsedMBAggregate = 0.0
+                driveKBReadsAggregate = 0.0
+                driveKBWritesAggregate = 0.0
+                networkKBInAggregate = 0.0
+                networkKBOutAggregate = 0.0
+                
+                aggregateLoopCountSmall = 0
+            end
+        end
+        #if we had any remaining values, average them now
+        if (aggregateLoopCountLarge != 0)
+            cpuUsed << (cpuUsedAggregate / aggregateLoopCountLarge)
+            memUsed << (memUsedAggregate / aggregateLoopCountLarge)
+        end        
+        if (aggregateLoopCountMedium != 0)
+            cpuClockSpeed << (cpuClockSpeedAggregate / aggregateLoopCountMedium)
+            cpuTemp << (cpuTempAggregate / aggregateLoopCountMedium)
+        end
+        if (aggregateLoopCountSmall != 0)
+            driveUsedMB << (driveUsedMBAggregate / aggregateLoopCountSmall)
+            driveKBReads << (driveKBReadsAggregate / aggregateLoopCountSmall)
+            driveKBWrites << (driveKBWritesAggregate / aggregateLoopCountSmall)
+            networkKBIn << (networkKBInAggregate / aggregateLoopCountSmall)
+            networkKBOut << (networkKBOutAggregate / aggregateLoopCountSmall)
+        end
+        
+        #large charts
+        cpuPercentageChart = generateSVGChart(cpuUsed, chartWidthLarge, chartHeightLarge, 100,
+                                              chartBackgroundColor, chartForegroundColor)
+        cpuPercentageChart.save(File.join(chartsSaveFolder, "cpuPercentChart.svg"))
+
+        memUsedChart = generateSVGChart(memUsed, chartWidthLarge, chartHeightLarge, currentMemTotal,
+                                        chartBackgroundColor, chartForegroundColor)
+        memUsedChart.save(File.join(chartsSaveFolder, "memUsedChart.svg"))
+
+        #medium charts
+        cpuClockChart = generateSVGChart(cpuClockSpeed, chartWidthMedium, chartHeightMedium, 2000, 
+                                         chartBackgroundColor, chartForegroundColor)
+        cpuClockChart.save(File.join(chartsSaveFolder, "cpuClockChart.svg"))
+        
+        cpuTempChart = generateSVGChart(cpuTemp, chartWidthMedium, chartHeightMedium, 90,
+                                        chartBackgroundColor, chartForegroundColor)
+        cpuTempChart.save(File.join(chartsSaveFolder, "cpuTempChart.svg"))
+
+        #small charts
+        driveUsedChart = generateSVGChart(driveUsedMB, chartWidthSmall, chartHeightSmall, currentDriveTotal,
+                                          chartBackgroundColor, chartForegroundColor)
+        driveUsedChart.save(File.join(chartsSaveFolder, "driveUsedChart.svg"))
+
+        driveKBReadsChart = generateSVGChart(driveKBReads, chartWidthSmall, chartHeightSmall, (400 * 1024),
+                                            chartBackgroundColor, chartForegroundColor)
+        driveKBReadsChart.save(File.join(chartsSaveFolder, "drivesKBReadsChart.svg"))
+
+        driveKBWritesChart = generateSVGChart(driveKBWrites, chartWidthSmall, chartHeightSmall, (400 * 1024),
+                                             chartBackgroundColor, chartForegroundColor)
+        driveKBWritesChart.save(File.join(chartsSaveFolder, "drivesKBWritesChart.svg"))
+
+        networkTrafficInChart = generateSVGChart(networkKBIn, chartWidthSmall, chartHeightSmall, (1 * 1024 *1024), 
+                                                 chartBackgroundColor, chartForegroundColor)
+        networkTrafficInChart.save(File.join(chartsSaveFolder, "networkTrafficInChart.svg"))
+
+        networkTrafficOutChart = generateSVGChart(networkKBOut, chartWidthSmall, chartHeightSmall, (1 * 1024 * 1024),
+                                                  chartBackgroundColor, chartForegroundColor)
+        networkTrafficOutChart.save(File.join(chartsSaveFolder, "networkTrafficOutChart.svg"))
+
+
+        mergeAndUpdateHTML(currentCPUUsed, currentCPUClockSpeed, currentCPUTemp, currentMemUsed, currentMemTotal,
+                           currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
+                           currentNetworkKBIn, currentNetworkKBOut, currentUptime)
+
+    end
+    
+
+
 
     def self.generatePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints)
         plotPointXSteps = (chartWidth.to_f / totalPoints.to_f)
@@ -137,171 +380,12 @@ class HTMLGen
     end
 
 
-    def self.generateStatHTML(parsedStatArray)
-        chartHeight = 175
-        chartWidth = 525
-        chartBackgroundColor = "#1f3445"
-        chartForegroundColor = "#3899e8"
-        chartsSaveFolder = "./content/monitor/images"
-
-        cpuUsed = Array.new
-        cpuClockSpeed = Array.new
-        cpuTemp = Array.new
-        memUsed = Array.new #memUsed is a combination of memTotal - memAvailable
-        driveUsedMB = Array.new
-        driveAvailableMB = Array.new
-        driveKBReads = Array.new
-        driveKBWrites = Array.new
-        networkKBIn = Array.new
-        networkKBOut = Array.new
-        
-        cpuUsedAggregate = 0.0
-        cpuClockSpeedAggregate = 0.0
-        cpuTempAggregate = 0.0
-        memUsedAggregate = 0.0
-        driveUsedMBAggregate = 0.0
-        driveKBReadsAggregate = 0.0
-        driveKBWritesAggregate = 0.0
-        networkKBInAggregate = 0.0
-        networkKBOutAggregate = 0.0
-        aggregateLoopCount = 0     
-
-        #these are used to hold the most current value for display in the html
-        currentCPUUsed = 0.0
-        currentCPUClockSpeed = 0.0
-        currentCPUTemp = 0.0
-        currentMemUsed = 0.0
-        currentMemTotal = 0.0    
-        currentDriveTotal = 0.0 
-        currentDriveUsedMB = 0.0
-        currentDriveKBRead = 0.0
-        currentDriveKBWrites = 0.0
-        currentNetworkKBIn = 0.0
-        currentNetworkKBOut = 0.0
-        currentUptime = ""           
-
-        Dir.mkdir(chartsSaveFolder) unless Dir.exist?(chartsSaveFolder)        
-        
-        aggregateCount = parsedStatArray.length / 60
-        if (parsedStatArray.length % 60 != 0)
-            aggregateCount += 1
-        end
-        if (aggregateCount < 1)
-           aggregateCount = 1
-        end        
-        parsedStatArray.each do |statHashes|
-            cpuUsedAggregate += statHashes["cpuused"].to_f
-            cpuClockSpeedAggregate += statHashes["cpuclockspeed"].to_f
-            cpuTempAggregate += statHashes["cputemp"].to_f
-            memUsedAggregate += ((statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024)
-            driveUsedMBAggregate += statHashes["driveusedmb"].to_f
-            driveKBReadsAggregate += statHashes["drivekbreads"].to_f
-            driveKBWritesAggregate += statHashes["drivekbwrites"].to_f
-            networkKBInAggregate += statHashes["networkkbin"].to_f
-            networkKBOutAggregate += statHashes["networkkbout"].to_f
-
-            #these are intentionally = and not += so we just take the last value provided
-            currentCPUUsed = statHashes["cpuused"].to_f
-            currentCPUClockSpeed = statHashes["cpuclockspeed"].to_f
-            currentCPUTemp = statHashes["cputemp"].to_f
-            currentMemUsed = ((statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024)
-            currentDriveUsedMB = statHashes["driveusedmb"].to_f
-            currentDriveKBRead = statHashes["drivekbreads"].to_f
-            currentDriveKBWrites = statHashes["drivekbwrites"].to_f
-            currentNetworkKBIn = statHashes["networkkbin"].to_f
-            currentNetworkKBOut = statHashes["networkkbout"].to_f
-            currentMemTotal = (statHashes["MemTotal"].to_f / 1024)
-            currentDriveTotal = statHashes["drivetotalmb"].to_f
-            currentUptime = statHashes["systemuptime"]
-            
-            aggregateLoopCount += 1
-            #if we have enough aggregate values, get average now
-            if (aggregateLoopCount == aggregateCount)
-                cpuUsed << (cpuUsedAggregate / aggregateCount)
-                cpuClockSpeed << (cpuClockSpeedAggregate / aggregateCount)
-                cpuTemp << (cpuTempAggregate / aggregateCount)
-                memUsed << (memUsedAggregate / aggregateCount)
-                driveUsedMB << (driveUsedMBAggregate / aggregateCount)
-                driveKBReads << (driveKBReadsAggregate / aggregateCount)
-                driveKBWrites << (driveKBWritesAggregate / aggregateCount)
-                networkKBIn << (networkKBInAggregate / aggregateCount)
-                networkKBOut << (networkKBOutAggregate / aggregateCount)
-                
-                cpuUsedAggregate = 0.0
-                cpuClockSpeedAggregate = 0.0
-                cpuTempAggregate = 0.0
-                memUsedAggregate = 0.0
-                driveUsedMBAggregate = 0.0
-                driveKBReadsAggregate = 0.0
-                driveKBWritesAggregate = 0.0
-                networkKBInAggregate = 0.0
-                networkKBOutAggregate = 0.0
-                
-                aggregateLoopCount = 0
-            end
-        end
-        #if we had any remaining values, average them now
-        if (aggregateLoopCount != 0)
-            cpuUsed << (cpuUsedAggregate / aggregateLoopCount)
-            cpuClockSpeed << (cpuClockSpeedAggregate / aggregateLoopCount)
-            cpuTemp << (cpuTempAggregate / aggregateLoopCount)
-            memUsed << (memUsedAggregate / aggregateLoopCount)
-            driveUsedMB << (driveUsedMBAggregate / aggregateLoopCount)
-            driveKBReads << (driveKBReadsAggregate / aggregateLoopCount)
-            driveKBWrites << (driveKBWritesAggregate / aggregateLoopCount)
-            networkKBIn << (networkKBInAggregate / aggregateLoopCount)
-            networkKBOut << (networkKBOutAggregate / aggregateLoopCount)
-        end        
-        
-        cpuPercentageChart = generateSVGChart(cpuUsed, chartWidth, chartHeight, 100,
-                                              chartBackgroundColor, chartForegroundColor)
-        cpuPercentageChart.save(File.join(chartsSaveFolder, "cpuPercentChart.svg"))
-
-        cpuClockChart = generateSVGChart(cpuClockSpeed, chartWidth, chartHeight, 2000, 
-                                         chartBackgroundColor, chartForegroundColor)
-        cpuClockChart.save(File.join(chartsSaveFolder, "cpuClockChart.svg"))
-        
-        cpuTempChart = generateSVGChart(cpuTemp, chartWidth, chartHeight, 90,
-                                        chartBackgroundColor, chartForegroundColor)
-        cpuTempChart.save(File.join(chartsSaveFolder, "cpuTempChart.svg"))
-
-        memUsedChart = generateSVGChart(memUsed, chartWidth, chartHeight, currentMemTotal,
-                                        chartBackgroundColor, chartForegroundColor)
-        memUsedChart.save(File.join(chartsSaveFolder, "memUsedChart.svg"))
-
-        driveUsedChart = generateSVGChart(driveUsedMB, chartWidth, chartHeight, currentDriveTotal,
-                                          chartBackgroundColor, chartForegroundColor)
-        driveUsedChart.save(File.join(chartsSaveFolder, "driveUsedChart.svg"))
-
-        driveKBReadsChart = generateSVGChart(driveKBReads, chartWidth, chartHeight, (400 * 1024),
-                                            chartBackgroundColor, chartForegroundColor)
-        driveKBReadsChart.save(File.join(chartsSaveFolder, "drivesKBReadsChart.svg"))
-
-        driveKBWritesChart = generateSVGChart(driveKBWrites, chartWidth, chartHeight, (400 * 1024),
-                                             chartBackgroundColor, chartForegroundColor)
-        driveKBWritesChart.save(File.join(chartsSaveFolder, "drivesKBWritesChart.svg"))
-
-        networkTrafficInChart = generateSVGChart(networkKBIn, chartWidth, chartHeight, (1 * 1024 *1024), 
-                                                 chartBackgroundColor, chartForegroundColor)
-        networkTrafficInChart.save(File.join(chartsSaveFolder, "networkTrafficInChart.svg"))
-
-        networkTrafficOutChart = generateSVGChart(networkKBOut, chartWidth, chartHeight, (1 * 1024 * 1024),
-                                                  chartBackgroundColor, chartForegroundColor)
-        networkTrafficOutChart.save(File.join(chartsSaveFolder, "networkTrafficOutChart.svg"))
-
-
-        mergeAndUpdateHTML(currentCPUUsed, currentCPUClockSpeed, currentCPUTemp, currentMemUsed, currentMemTotal,
-                           currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
-                           currentNetworkKBIn, currentNetworkKBOut, currentUptime)
-
-    end
-
-  
+    
 
     def self.mergeAndUpdateHTML(currentCPUUsed, currentCPUClockSpeed, currentCPUTemp, currentMemUsed, currentMemTotal,
-                                currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
-                                currentNetworkKBIn, currentNetworkKBOut, currentUptime)
-        
+        currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
+        currentNetworkKBIn, currentNetworkKBOut, currentUptime)
+
         indexLocation = "./content/monitor/index.html"
         indexTemplateLocation = "./content/monitor/index-template.html"
         htmlContent = File.read(indexTemplateLocation)
@@ -322,35 +406,6 @@ class HTMLGen
         File.write(indexLocation, htmlContent)
     end
 
-    def self.parseStatFiles(fileArray)
-        statArray = Array.new
-        fileArray.each do |file|
-            statHash = Hash.new
-            IO.foreach(file) do |line|
-                statValues = line.chomp.split("=")
-                statHash[statValues[0].to_s] = statValues[1]
-            end
-            statArray << statHash
-        end
 
-        return statArray
-    end
 
-    def self.rotateStatsAndGenerateStatArray()
-        time = Time.new
-        txtFiles = File.join(@statsDir, "*.txt")
-        returnedArray = Array.new
-        Dir.glob(txtFiles) do |file|
-            fileStat = File::Stat.new(file)
-            cutoffDate = (time - (@statCutoff)) #in seconds
-            if fileStat.ctime < cutoffDate
-                Log.log("Deleting #{file} as part of log rotation.", 2)
-                File.delete(file)
-            else
-                returnedArray << file
-            end
-        end
-
-        return returnedArray.sort()
-    end
 end
