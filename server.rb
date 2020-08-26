@@ -38,24 +38,27 @@ def sanitizeUserRequests(requestContent, ipAddr)
 
     File.join(WEB_ROOT, *clean)
 end
-
+    
+#generate stats on startup, then do it every X stats loops
+GenerateStats.generateStats()
+Log.log("Stats generated", 0)
+HTMLGen.htmlGenThread()
+GC.start()
 
 t1 = Thread.new do
     loopCount = 0
     genStatsPageEveryX = 30
-    #generate stats on startup, then do it every X stats loops
-    
-    GenerateStats.generateStats()
-    Log.log("Stats generated", 0)
-    HTMLGen.htmlGenThread()
-
     while true do
         GenerateStats.generateStats()
         Log.log("Stats generated", 0)
         loopCount += 1
+
         if (loopCount == genStatsPageEveryX)
             HTMLGen.htmlGenThread()
-            Log.log("Garbage Collecting", 1)
+        end
+        #split this into its own block so GC can collect html gen garbage
+        if (loopCount == genStatsPageEveryX)
+            Log.log("Garbage collecting", 1)
             GC.start()
             loopCount = 0
         end
