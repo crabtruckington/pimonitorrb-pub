@@ -15,7 +15,7 @@ It includes a simple web server, and a method to generate statistics and graphs.
 
 1) Download this repo
 2) Install `postgresql` packages for your distro, and create a table using the `sqlTables.sql` file
-3) Open copy `configs.rb.example` to `configs.rb` and configure the values as appropriate
+3) Copy `configs.rb.example` to `configs.rb` and configure the values as appropriate
 4) Test run the `statgen.sh` file, to make sure your pi has the tooling available to generate the stats required. If you are missing tools, install them. By default, you need `iostat`, `vcgencmd`, `cat`, `df`, `iostat`, `ifstat`, `uptime`, `awk` and `grep`. Most of these are available in any distro, except `vcgencmd` which is unique to Raspbian.
 7) Run the server with `ruby server.rb`
 8) Visit `{host}:{port}/monitor` to view the graphs 
