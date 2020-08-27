@@ -71,16 +71,6 @@ Thread.new do
     end
 end
 
-
-# t2 = Thread.new do
-#     while true do
-#         HTMLGen.htmlGenThread()
-#         Log.log("Garbage collecting", 0)
-#         GC.start()        
-#     end
-# end
-
-
 server = TCPServer.new('localhost', 6689)
 
 loop do

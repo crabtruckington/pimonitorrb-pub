@@ -16,14 +16,7 @@ class GenerateStats
         
         bash(cmd)
 
-        profilerTime = Time.new
         if (Dir[File.join(statsDir + "/**/*")].length <= 1)
-            # we need at least 2 stats file to generate a graph
-            #you can set a breakpoint here or puts out the time to see how long the above "if" takes
-            #mostly this was used to profile huge directories (24k files) to see how long it takes
-            #to ask the file system for a count. It doesnt take long on ext4 partitions, <100ms
-            profilerTime = (Time.new - profilerTime)
-            bp1 = "test"
             sleep(1)
             statsTime = Time.new.strftime("%Y%m%d%H%M%S%L")
             cmd = "./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt"
@@ -55,9 +48,11 @@ class HTMLGen
         parsedStatArray = parseStatFiles(fileArray)
         Log.log("Generating HTML content and images", 0)
         generateStatHTML(parsedStatArray)
-        # Log.log("HTML generation sleeping for #{@htmlGenInterval}", 0)
-        # #sleep before exiting
-        # sleep(@htmlGenInterval)
+        # we are going to purposefully dump these values before returning, so that ruby
+        # knows the previous values are good to be collected
+        # it seemed to be holding onto these for some reason
+        fileArray = Array.new
+        parsedStatArray = Array.new
     end
 
     def self.rotateStatsAndGenerateStatArray()
@@ -84,7 +79,11 @@ class HTMLGen
             statHash = Hash.new
             IO.foreach(file) do |line|
                 statValues = line.chomp.split("=")
-                statHash[statValues[0].to_s] = statValues[1]
+                if (statValues[0] == "systemuptime")
+                    statHash[statValues[0].to_s.freeze] = statValues[1].to_s.freeze
+                else
+                    statHash[statValues[0].to_s.freeze] = statValues[1].to_f
+                end
             end
             statArray << statHash
         end
@@ -94,7 +93,7 @@ class HTMLGen
 
 
     def self.generateStatHTML(parsedStatArray)
-        #chartHeight = 175
+        #chartHeight = 175 #default sizes if you want 3x3 column stat page
         #chartWidth = 525
         chartHeightSmall = 100
         chartWidthSmall = 315
@@ -178,29 +177,29 @@ class HTMLGen
         Dir.mkdir(chartsSaveFolder) unless Dir.exist?(chartsSaveFolder)  
         
         parsedStatArray.each_with_index do |statHashes, index|
-            cpuUsedAggregate += statHashes["cpuused"].to_f
-            cpuClockSpeedAggregate += statHashes["cpuclockspeed"].to_f
-            cpuTempAggregate += statHashes["cputemp"].to_f
-            memUsedAggregate += ((statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024)
-            driveUsedMBAggregate += statHashes["driveusedmb"].to_f
-            driveKBReadsAggregate += statHashes["drivekbreads"].to_f
-            driveKBWritesAggregate += statHashes["drivekbwrites"].to_f
-            networkKBInAggregate += statHashes["networkkbin"].to_f
-            networkKBOutAggregate += statHashes["networkkbout"].to_f
+            cpuUsedAggregate += statHashes["cpuused"]
+            cpuClockSpeedAggregate += statHashes["cpuclockspeed"]
+            cpuTempAggregate += statHashes["cputemp"]
+            memUsedAggregate += ((statHashes["MemTotal"] - statHashes["MemAvailable"]) / 1024)
+            driveUsedMBAggregate += statHashes["driveusedmb"]
+            driveKBReadsAggregate += statHashes["drivekbreads"]
+            driveKBWritesAggregate += statHashes["drivekbwrites"]
+            networkKBInAggregate += statHashes["networkkbin"]
+            networkKBOutAggregate += statHashes["networkkbout"]
 
             #we only want the last value
             if (index == parsedStatArrayLength - 1)
-                currentCPUUsed = statHashes["cpuused"].to_f
-                currentCPUClockSpeed = statHashes["cpuclockspeed"].to_f
-                currentCPUTemp = statHashes["cputemp"].to_f
-                currentMemUsed = ((statHashes["MemTotal"].to_f - statHashes["MemAvailable"].to_f) / 1024)
-                currentDriveUsedMB = statHashes["driveusedmb"].to_f
-                currentDriveKBRead = statHashes["drivekbreads"].to_f
-                currentDriveKBWrites = statHashes["drivekbwrites"].to_f
-                currentNetworkKBIn = statHashes["networkkbin"].to_f
-                currentNetworkKBOut = statHashes["networkkbout"].to_f
-                currentMemTotal = (statHashes["MemTotal"].to_f / 1024)
-                currentDriveTotal = statHashes["drivetotalmb"].to_f
+                currentCPUUsed = statHashes["cpuused"]
+                currentCPUClockSpeed = statHashes["cpuclockspeed"]
+                currentCPUTemp = statHashes["cputemp"]
+                currentMemUsed = ((statHashes["MemTotal"] - statHashes["MemAvailable"]) / 1024)
+                currentDriveUsedMB = statHashes["driveusedmb"]
+                currentDriveKBRead = statHashes["drivekbreads"]
+                currentDriveKBWrites = statHashes["drivekbwrites"]
+                currentNetworkKBIn = statHashes["networkkbin"]
+                currentNetworkKBOut = statHashes["networkkbout"]
+                currentMemTotal = (statHashes["MemTotal"] / 1024)
+                currentDriveTotal = statHashes["drivetotalmb"]
                 currentUptime = statHashes["systemuptime"]
             end
 
@@ -302,9 +301,6 @@ class HTMLGen
                            currentNetworkKBIn, currentNetworkKBOut, currentUptime)
 
     end
-    
-
-
 
     def self.generatePlotPoints(chartHeight, chartWidth, value, maxValue, currentPoint, totalPoints)
         plotPointXSteps = (chartWidth.to_f / totalPoints.to_f)
@@ -317,7 +313,7 @@ class HTMLGen
                 pointY = 1
             end
             #chartHeight + 1 because we want the 2px stroke to ride the top of the chart
-            plotPoint = (pointX).to_s + "," + (pointY).to_s
+            plotPoint = (pointX).to_s << "," << (pointY).to_s
 
         rescue Exception => e
             puts e
@@ -350,7 +346,7 @@ class HTMLGen
         begin
             valueArray.each do |value|
                 #chartHeight - 1 because we want the 2px stroke to ride the top of the chart
-                chartPlotPoints += generatePlotPoints(chartHeight - 1, chartWidth, value, maxValue, currentPoint, totalPoints) + " "
+                chartPlotPoints << generatePlotPoints(chartHeight - 1, chartWidth, value, maxValue, currentPoint, totalPoints) << " "
                 currentPoint += 1
             end
 
@@ -379,9 +375,6 @@ class HTMLGen
         return chart
     end
 
-
-    
-
     def self.mergeAndUpdateHTML(currentCPUUsed, currentCPUClockSpeed, currentCPUTemp, currentMemUsed, currentMemTotal,
         currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
         currentNetworkKBIn, currentNetworkKBOut, currentUptime)
@@ -405,7 +398,5 @@ class HTMLGen
 
         File.write(indexLocation, htmlContent)
     end
-
-
-
+    
 end
