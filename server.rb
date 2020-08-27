@@ -8,7 +8,11 @@ require_relative "statsgen"
 WEB_ROOT = './content'
 
 def sanitizeUserRequests(requestContent, ipAddr)
-    request_uri  = requestContent.split(" ")[1]
+    if requestContent.empty?
+        raise "Server Received Empty Request"
+    else
+        request_uri  = requestContent.split(" ")[1]
+    end
     path = URI.unescape(URI(request_uri).path)  
     clean = []
 
@@ -40,27 +44,29 @@ def sanitizeUserRequests(requestContent, ipAddr)
 end
     
 #generate stats on startup, then do it every X stats loops
-GenerateStats.generateStats()
-Log.log("Stats generated", 0)
-HTMLGen.htmlGenThread()
-GC.start()
-
 t1 = Thread.new do
+    GenerateStats.generateStats()
+    Log.log("Stats generated", 0)
+    HTMLGen.htmlGenThread()
+end
+t1.join()
+
+Thread.new do
     loopCount = 0
     genStatsPageEveryX = 30
     while true do
+        if (loopCount == 0)
+            Log.log("Garbage collecting", 1)
+            GC.start()
+        end
+        
         GenerateStats.generateStats()
         Log.log("Stats generated", 0)
         loopCount += 1
 
         if (loopCount == genStatsPageEveryX)
             HTMLGen.htmlGenThread()
-        end
-        #split this into its own block so GC can collect html gen garbage
-        if (loopCount == genStatsPageEveryX)
-            Log.log("Garbage collecting", 1)
-            GC.start()
-            loopCount = 0
+            loopCount = 0        
         end
     end
 end
@@ -80,9 +86,13 @@ server = TCPServer.new('localhost', 6689)
 loop do
     #socket = server.accept
     Thread.start(server.accept) do |socket|  
-        requestContent = socket.gets    
-        path = sanitizeUserRequests(requestContent, socket.peeraddr)
-        ServeRequest.serveRequest(socket, path)
+        requestContent = socket.gets
+        begin
+            path = sanitizeUserRequests(requestContent, socket.peeraddr)
+            ServeRequest.serveRequest(socket, path)    
+        rescue Exception => e
+            Log.log("Exception serving request, " + e, 4)
+        end
     end
 end
 
