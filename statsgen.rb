@@ -1,98 +1,56 @@
-require "minichart"
 require "victor"
 require "shellwords"
 require_relative "logging"
+require_relative "configs"
+require_relative "sqlHelpers"
 
 class GenerateStats
+    @statInterval = Configs.getConfigValue("statsGenInterval")
     def self.generateStats()
-        statsGenInterval = 1
-        statsTime = Time.new.strftime("%Y%m%d%H%M%S%L")
-        statsDir = "./monitorstatgen/stats/"
-        cmd = "./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt"
+        statsGenInterval = @statInterval
+        cmd = "./monitorstatgen/statgen.sh"
+        columnList = ""
+        valueList = ""
         
-        #you want to do this check every time, because its entirely possible
-        #that a user has come by and deleted the directory
-        Dir.mkdir(statsDir) unless Dir.exist?(statsDir)
-        
-        bash(cmd)
+        stats = bash(cmd)
 
-        if (Dir[File.join(statsDir + "/**/*")].length <= 1)
-            sleep(1)
-            statsTime = Time.new.strftime("%Y%m%d%H%M%S%L")
-            cmd = "./monitorstatgen/statgen.sh > #{statsDir}#{statsTime}.txt"
-            bash(cmd)
+        stats.each_line do |line|
+            statValues = line.chomp.split("=")
+            if (statValues[0] == "systemuptime")
+                columnList << statValues[0].to_s << ","
+                valueList << "'" << statValues[1].to_s << "',"
+            else
+                columnList << statValues[0].to_s << ","
+                valueList << statValues[1].to_s << ","
+            end
         end
+
+        columnList.delete_suffix!(",")
+        valueList.delete_suffix!(",")
+
+        SQLMethods.insertStats(columnList, valueList)
+
         sleep(statsGenInterval)
     end
 
     def self.bash(command)
         escapedCommand = Shellwords.escape(command)
-        system "bash -c #{escapedCommand}"
+        result = `bash -c #{escapedCommand}`.chomp
+        return result
     end
 end
 
 class HTMLGen
-    include Minichart
     include Victor
-    # @htmlGenInterval = 60 #in seconds
-    @statCutoff = (60 * 60 * 48) #(60 * 60 * 1) #in seconds
-    @statsDir = "./monitorstatgen/stats/"
+    @statsgenStartTime
 
     def self.htmlGenThread()
-        fileArray = Array.new
-        parsedStatArray = Array.new
-        
-        Log.log("Rotating stats and sorting stat list...", 0)
-        fileArray = rotateStatsAndGenerateStatArray()
-        Log.log("Stats rotated, generating new stats", 0)
-        parsedStatArray = parseStatFiles(fileArray)
+        @statsgenStartTime = Time.new
         Log.log("Generating HTML content and images", 0)
-        generateStatHTML(parsedStatArray)
-        # we are going to purposefully dump these values before returning, so that ruby
-        # knows the previous values are good to be collected
-        # it seemed to be holding onto these for some reason
-        fileArray = Array.new
-        parsedStatArray = Array.new
+        generateStatHTML()
     end
 
-    def self.rotateStatsAndGenerateStatArray()
-        time = Time.new
-        txtFiles = File.join(@statsDir, "*.txt")
-        returnedArray = Array.new
-        Dir.glob(txtFiles) do |file|
-            fileStat = File::Stat.new(file)
-            cutoffDate = (time - (@statCutoff)) #in seconds
-            if fileStat.ctime < cutoffDate
-                Log.log("Deleting #{file} as part of log rotation.", 2)
-                File.delete(file)
-            else
-                returnedArray << file
-            end
-        end
-
-        return returnedArray.sort()
-    end
-
-    def self.parseStatFiles(fileArray)
-        statArray = Array.new
-        fileArray.each do |file|
-            statHash = Hash.new
-            IO.foreach(file) do |line|
-                statValues = line.chomp.split("=")
-                if (statValues[0] == "systemuptime")
-                    statHash[statValues[0].to_s.freeze] = statValues[1].to_s.freeze
-                else
-                    statHash[statValues[0].to_s.freeze] = statValues[1].to_f
-                end
-            end
-            statArray << statHash
-        end
-
-        return statArray
-    end
-
-
-    def self.generateStatHTML(parsedStatArray)
+    def self.generateStatHTML()
         #chartHeight = 175 #default sizes if you want 3x3 column stat page
         #chartWidth = 525
         chartHeightSmall = 100
@@ -105,33 +63,27 @@ class HTMLGen
         chartBackgroundColor = "#1f3445"
         chartForegroundColor = "#3899e8"
         chartsSaveFolder = "./content/monitor/images"
-        parsedStatArrayLength = parsedStatArray.length
 
+        aggregateSizeSmall = 78 # 40 # 42 is a point ~ every 8.75 pixels
+        aggregateSizeMedium =  205 # 91
+        aggregateSizeLarge = 425 # 208
+
+        #big chart
         cpuUsed = Array.new
+        memUsed = Array.new #memUsed is a combination of memTotal - memAvailable
+        
+        #medium chart
         cpuClockSpeed = Array.new
         cpuTemp = Array.new
-        memUsed = Array.new #memUsed is a combination of memTotal - memAvailable
+
+        #small chart
         driveUsedMB = Array.new
-        driveAvailableMB = Array.new
         driveKBReads = Array.new
         driveKBWrites = Array.new
         networkKBIn = Array.new
         networkKBOut = Array.new
-        
-        cpuUsedAggregate = 0.0
-        cpuClockSpeedAggregate = 0.0
-        cpuTempAggregate = 0.0
-        memUsedAggregate = 0.0
-        driveUsedMBAggregate = 0.0
-        driveKBReadsAggregate = 0.0
-        driveKBWritesAggregate = 0.0
-        networkKBInAggregate = 0.0
-        networkKBOutAggregate = 0.0
-        aggregateLoopCountSmall = 0
-        aggregateLoopCountMedium = 0
-        aggregateLoopCountLarge = 0
 
-        #these are used to hold the most current value for display in the html
+
         currentCPUUsed = 0.0
         currentCPUClockSpeed = 0.0
         currentCPUTemp = 0.0
@@ -143,118 +95,33 @@ class HTMLGen
         currentDriveKBWrites = 0.0
         currentNetworkKBIn = 0.0
         currentNetworkKBOut = 0.0
-        currentUptime = ""           
-        
-        aggregateSizeSmall = 78 # 40 # 42 is a point ~ every 8.75 pixels
-        aggregateSizeMedium =  205 # 91
-        aggregateSizeLarge = 425 # 208
-        
-        aggregateCountSmall = parsedStatArrayLength / aggregateSizeSmall
-        aggregateCountMedium = parsedStatArrayLength / aggregateSizeMedium
-        aggregateCountLarge = parsedStatArrayLength / aggregateSizeLarge
+        currentUptime = ""  
 
-        if (parsedStatArray.length % aggregateSizeSmall != 0)
-            aggregateCountSmall += 1
-        end
-        if (aggregateCountSmall < 1)
-           aggregateCountSmall = 1
-        end
+        cpuUsed = SQLMethods.getStatAggregate(aggregateSizeLarge, "cpuused")
+        memUsed = SQLMethods.getComputedStatAggregate(aggregateSizeLarge, "memused", "memtotal", "memavailable")
 
-        if (parsedStatArray.length % aggregateSizeMedium != 0)
-            aggregateCountMedium += 1
-        end
-        if (aggregateCountMedium < 1)
-           aggregateCountMedium = 1
-        end
+        cpuClockSpeed = SQLMethods.getStatAggregate(aggregateSizeMedium, "cpuclockspeed")
+        cpuTemp = SQLMethods.getStatAggregate(aggregateSizeMedium, "cputemp")
 
-        if (parsedStatArray.length % aggregateSizeLarge != 0)
-            aggregateCountLarge += 1
-        end
-        if (aggregateCountLarge < 1)
-           aggregateCountLarge = 1
-        end
+        driveUsedMB = SQLMethods.getStatAggregate(aggregateSizeSmall, "driveusedmb")
+        driveKBReads = SQLMethods.getStatAggregate(aggregateSizeSmall, "drivekbreads")
+        driveKBWrites = SQLMethods.getStatAggregate(aggregateSizeSmall, "drivekbwrites")
+        networkKBIn = SQLMethods.getStatAggregate(aggregateSizeSmall, "networkkbin")
+        networkKBOut = SQLMethods.getStatAggregate(aggregateSizeSmall, "networkkbout")
 
-        Dir.mkdir(chartsSaveFolder) unless Dir.exist?(chartsSaveFolder)  
-        
-        parsedStatArray.each_with_index do |statHashes, index|
-            cpuUsedAggregate += statHashes["cpuused"]
-            cpuClockSpeedAggregate += statHashes["cpuclockspeed"]
-            cpuTempAggregate += statHashes["cputemp"]
-            memUsedAggregate += ((statHashes["MemTotal"] - statHashes["MemAvailable"]) / 1024)
-            driveUsedMBAggregate += statHashes["driveusedmb"]
-            driveKBReadsAggregate += statHashes["drivekbreads"]
-            driveKBWritesAggregate += statHashes["drivekbwrites"]
-            networkKBInAggregate += statHashes["networkkbin"]
-            networkKBOutAggregate += statHashes["networkkbout"]
+        currentCPUUsed = SQLMethods.getMostRecentStatValue("cpuused").to_f
+        currentCPUClockSpeed = SQLMethods.getMostRecentStatValue("cpuclockspeed").to_f
+        currentCPUTemp = SQLMethods.getMostRecentStatValue("cputemp").to_f
+        currentMemTotal = SQLMethods.getMostRecentStatValue("memtotal").to_f
+        currentMemUsed = (currentMemTotal - SQLMethods.getMostRecentStatValue("memavailable").to_f)
+        currentDriveUsedMB = SQLMethods.getMostRecentStatValue("driveusedmb").to_f
+        currentDriveTotal = SQLMethods.getMostRecentStatValue("drivetotalmb").to_f
+        currentDriveKBRead = SQLMethods.getMostRecentStatValue("drivekbreads").to_f
+        currentDriveKBWrites = SQLMethods.getMostRecentStatValue("drivekbwrites").to_f
+        currentNetworkKBIn = SQLMethods.getMostRecentStatValue("networkkbin").to_f
+        currentNetworkKBOut = SQLMethods.getMostRecentStatValue("networkkbout").to_f
+        currentUptime = SQLMethods.getMostRecentStatValue("systemuptime")
 
-            #we only want the last value
-            if (index == parsedStatArrayLength - 1)
-                currentCPUUsed = statHashes["cpuused"]
-                currentCPUClockSpeed = statHashes["cpuclockspeed"]
-                currentCPUTemp = statHashes["cputemp"]
-                currentMemUsed = ((statHashes["MemTotal"] - statHashes["MemAvailable"]) / 1024)
-                currentDriveUsedMB = statHashes["driveusedmb"]
-                currentDriveKBRead = statHashes["drivekbreads"]
-                currentDriveKBWrites = statHashes["drivekbwrites"]
-                currentNetworkKBIn = statHashes["networkkbin"]
-                currentNetworkKBOut = statHashes["networkkbout"]
-                currentMemTotal = (statHashes["MemTotal"] / 1024)
-                currentDriveTotal = statHashes["drivetotalmb"]
-                currentUptime = statHashes["systemuptime"]
-            end
-
-            aggregateLoopCountSmall += 1
-            aggregateLoopCountMedium += 1
-            aggregateLoopCountLarge += 1
-            #if we have enough aggregate values, get average now
-            if (aggregateLoopCountLarge == aggregateCountLarge)
-                cpuUsed << (cpuUsedAggregate / aggregateCountLarge)
-                memUsed << (memUsedAggregate / aggregateCountLarge)
-                
-                cpuUsedAggregate = 0.0
-                memUsedAggregate = 0.0
-                
-                aggregateLoopCountLarge = 0
-            end
-            if (aggregateLoopCountMedium == aggregateCountMedium)
-                cpuClockSpeed << (cpuClockSpeedAggregate / aggregateCountMedium)
-                cpuTemp << (cpuTempAggregate / aggregateCountMedium)
-                cpuClockSpeedAggregate = 0.0
-                cpuTempAggregate = 0.0
-                
-                aggregateLoopCountMedium = 0
-            end
-            if (aggregateLoopCountSmall == aggregateCountSmall)
-                driveUsedMB << (driveUsedMBAggregate / aggregateCountSmall)
-                driveKBReads << (driveKBReadsAggregate / aggregateCountSmall)
-                driveKBWrites << (driveKBWritesAggregate / aggregateCountSmall)
-                networkKBIn << (networkKBInAggregate / aggregateCountSmall)
-                networkKBOut << (networkKBOutAggregate / aggregateCountSmall)
-                driveUsedMBAggregate = 0.0
-                driveKBReadsAggregate = 0.0
-                driveKBWritesAggregate = 0.0
-                networkKBInAggregate = 0.0
-                networkKBOutAggregate = 0.0
-                
-                aggregateLoopCountSmall = 0
-            end
-        end
-        #if we had any remaining values, average them now
-        if (aggregateLoopCountLarge != 0)
-            cpuUsed << (cpuUsedAggregate / aggregateLoopCountLarge)
-            memUsed << (memUsedAggregate / aggregateLoopCountLarge)
-        end        
-        if (aggregateLoopCountMedium != 0)
-            cpuClockSpeed << (cpuClockSpeedAggregate / aggregateLoopCountMedium)
-            cpuTemp << (cpuTempAggregate / aggregateLoopCountMedium)
-        end
-        if (aggregateLoopCountSmall != 0)
-            driveUsedMB << (driveUsedMBAggregate / aggregateLoopCountSmall)
-            driveKBReads << (driveKBReadsAggregate / aggregateLoopCountSmall)
-            driveKBWrites << (driveKBWritesAggregate / aggregateLoopCountSmall)
-            networkKBIn << (networkKBInAggregate / aggregateLoopCountSmall)
-            networkKBOut << (networkKBOutAggregate / aggregateLoopCountSmall)
-        end
         
         #large charts
         cpuPercentageChart = generateSVGChart(cpuUsed, chartWidthLarge, chartHeightLarge, 100,
@@ -386,17 +253,18 @@ class HTMLGen
         htmlContent.gsub!("{cpuPercentValue}", (currentCPUUsed.round(2)).to_s)
         htmlContent.gsub!("{cpuClockValue}", (currentCPUClockSpeed.round(2)).to_s)
         htmlContent.gsub!("{cpuTempValue}", (currentCPUTemp.round(2)).to_s)
-        htmlContent.gsub!("{memUsedValue}", currentMemUsed.to_i.to_s)
-        htmlContent.gsub!("{memTotalValue}", (currentMemTotal.round(2)).to_s)
+        htmlContent.gsub!("{memUsedValue}", (currentMemUsed / 1024).to_i.to_s)
+        htmlContent.gsub!("{memTotalValue}", ((currentMemTotal / 1024).round(2)).to_s)
         htmlContent.gsub!("{driveUsedValue}", ((((currentDriveUsedMB.to_f / currentDriveTotal.to_f) * 100).round(2)).to_s))
         htmlContent.gsub!("{driveKBReadsValue}", (currentDriveKBRead.round(2)).to_s)
         htmlContent.gsub!("{driveKBWritesValue}", (currentDriveKBWrites.round(2)).to_s)
         htmlContent.gsub!("{currentNetInValue}", (currentNetworkKBIn.round(2)).to_s)
         htmlContent.gsub!("{currentNetOutValue}", (currentNetworkKBOut.round(2)).to_s)
         htmlContent.gsub!("{uptimeValueRaw}", currentUptime.to_s.gsub("up ", ""))
-        htmlContent.gsub!("{generationtime}", Time.new.strftime("%Y-%m-%d %H:%M:%S"))
+        htmlContent.gsub!("{generationtime}", (Time.new.strftime("%Y-%m-%d %H:%M:%S") + ", took " +
+                                              (Time.new - @statsgenStartTime).round(2).to_s + " seconds"))
 
         File.write(indexLocation, htmlContent)
     end
-    
+
 end

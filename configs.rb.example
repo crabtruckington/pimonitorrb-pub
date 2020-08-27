@@ -1,0 +1,17 @@
+class Configs
+    CONFIGVALUES =
+    {
+        "htmlGenSleep" => 60,
+        "statsGenInterval" => 1,
+        "statsRetentionPeriod" => 60 * 60 * 24 * 7, #in seconds
+        "webRoot" => "./content".freeze,
+        "logLocation" => "./pimonitorrb.log".freeze,
+        "postgresConnString" => "host=localhost user=xxxx password=xxxx dbname=pimonitor"
+    }
+
+    DEFAULTCONFIG = "badType".freeze
+
+    def self.getConfigValue(type)
+        CONFIGVALUES.fetch(type, DEFAULTCONFIG)
+    end
+end

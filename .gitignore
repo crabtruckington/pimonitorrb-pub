@@ -3,4 +3,6 @@
 *.log
 /monitorstatgen/stats/*
 /content/monitor/images/*
+configs*
+!configs.rb.example
 !.gitignore
