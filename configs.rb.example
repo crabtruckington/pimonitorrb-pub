@@ -6,6 +6,9 @@ class Configs
         "statsRetentionPeriod" => 60 * 60 * 24 * 7, #in seconds
         "webRoot" => "./content".freeze,
         "logLocation" => "./pimonitorrb.log".freeze,
+        "serverHost" => "localhost".freeze,
+        "serverPort" => 6689,
+        "logLevel" => 0,
         "postgresConnString" => "host=localhost user=xxxx password=xxxx dbname=pimonitor"
     }
 
