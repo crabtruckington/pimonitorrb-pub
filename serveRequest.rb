@@ -78,9 +78,11 @@ class ServeRequest
                 respondWith404(socket, path)
             end
         
-            socket.close
+            
         rescue Exception => e
             Log.log("Exception serving request for #{path} , #{socket.peeraddr}\r\n#{e}", 3)
+        ensure
+            socket.close unless socket.nil?
         end
     end
 
