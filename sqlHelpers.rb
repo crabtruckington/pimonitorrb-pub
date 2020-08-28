@@ -1,7 +1,7 @@
 require "pg"
 require_relative "configs"
 
-# apparently holding open pg connections is good? So we will just have 1 database connection.
+# shared connection is for the chart point generation methods, open/close are called in statsgen.rb
 class SQLMethods
     @sharedConnection = ""
     
@@ -39,7 +39,6 @@ class SQLMethods
         return results
     end
 
-
     def self.getStatAggregate(ntileValue, column)
         results = Array.new
         statsCutoff = (Time.new - Configs.getConfigValue("statsRetentionPeriod")).strftime("%Y-%m-%d %H:%M:%S")
@@ -65,6 +64,13 @@ class SQLMethods
         pgresults = @sharedConnection.exec("SELECT #{column} FROM monitorstats ORDER BY statsdate DESC LIMIT 1")
         #connection.close()
         
+        return pgresults.getvalue(0,0)
+    end
+
+    def self.getOldestStat()
+        statsCutoff = (Time.new - Configs.getConfigValue("statsRetentionPeriod")).strftime("%Y-%m-%d %H:%M:%S")
+        pgresults = @sharedConnection.exec("SELECT statsdate FROM monitorstats WHERE statsdate > '#{statsCutoff}' " +
+                                           "ORDER BY statsdate ASC LIMIT 1")
         return pgresults.getvalue(0,0)
     end
 

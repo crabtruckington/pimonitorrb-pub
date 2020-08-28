@@ -60,9 +60,9 @@ class HTMLGen
         chartHeightLarge = 150
         chartWidthLarge = 1700
 
-        chartBackgroundColor = "#1f3445"
-        chartForegroundColor = "#3899e8"
-        chartsSaveFolder = "./content/monitor/images"
+        chartBackgroundColor = "#1f3445".freeze
+        chartForegroundColor = "#3899e8".freeze
+        chartsSaveFolder = "./content/monitor/images".freeze
 
         aggregateSizeSmall = 78 # 40 # 42 is a point ~ every 8.75 pixels
         aggregateSizeMedium =  205 # 91
@@ -95,7 +95,8 @@ class HTMLGen
         currentDriveKBWrites = 0.0
         currentNetworkKBIn = 0.0
         currentNetworkKBOut = 0.0
-        currentUptime = ""  
+        currentUptime = ""
+        oldestStat = ""
 
         SQLMethods.openSharedConnection()
         cpuUsed = SQLMethods.getStatAggregate(aggregateSizeLarge, "cpuused")
@@ -122,6 +123,7 @@ class HTMLGen
         currentNetworkKBIn = SQLMethods.getMostRecentStatValue("networkkbin").to_f
         currentNetworkKBOut = SQLMethods.getMostRecentStatValue("networkkbout").to_f
         currentUptime = SQLMethods.getMostRecentStatValue("systemuptime")
+        oldestStat = DateTime.parse(SQLMethods.getOldestStat()).strftime("%Y-%m-%d %H:%M:%S")
         SQLMethods.closeSharedConnection()
 
         
@@ -167,7 +169,7 @@ class HTMLGen
 
         mergeAndUpdateHTML(currentCPUUsed, currentCPUClockSpeed, currentCPUTemp, currentMemUsed, currentMemTotal,
                            currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
-                           currentNetworkKBIn, currentNetworkKBOut, currentUptime)
+                           currentNetworkKBIn, currentNetworkKBOut, currentUptime, oldestStat)
 
     end
 
@@ -246,7 +248,7 @@ class HTMLGen
 
     def self.mergeAndUpdateHTML(currentCPUUsed, currentCPUClockSpeed, currentCPUTemp, currentMemUsed, currentMemTotal,
         currentDriveTotal, currentDriveUsedMB, currentDriveKBRead, currentDriveKBWrites,
-        currentNetworkKBIn, currentNetworkKBOut, currentUptime)
+        currentNetworkKBIn, currentNetworkKBOut, currentUptime, oldestStat)
 
         indexLocation = "./content/monitor/index.html"
         indexTemplateLocation = "./content/monitor/index-template.html"
@@ -265,6 +267,7 @@ class HTMLGen
         htmlContent.gsub!("{uptimeValueRaw}", currentUptime.to_s.gsub("up ", ""))
         htmlContent.gsub!("{generationtime}", (Time.new.strftime("%Y-%m-%d %H:%M:%S") + ", took " +
                                               (Time.new - @statsgenStartTime).round(2).to_s + " seconds"))
+        htmlContent.gsub!("{oldestStat}", oldestStat)
 
         File.write(indexLocation, htmlContent)
     end
