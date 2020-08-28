@@ -3,11 +3,20 @@ require_relative "configs"
 
 # apparently holding open pg connections is good? So we will just have 1 database connection.
 class SQLMethods
-    @connection = PG::Connection.open(Configs.getConfigValue("postgresConnString"))
+    @sharedConnection = ""
+    
+    def self.openSharedConnection()
+        @sharedConnection = PG::Connection.open(Configs.getConfigValue("postgresConnString"))
+    end
+
+    def self.closeSharedConnection()
+        @sharedConnection.close()
+    end
+    
     def self.insertStats(columns, values)
-        
-        @connection.exec_params("INSERT INTO monitorstats (#{columns}) VALUES (#{values});")
-        #connection.close()
+        connection = PG::Connection.open(Configs.getConfigValue("postgresConnString"))
+        connection.exec_params("INSERT INTO monitorstats (#{columns}) VALUES (#{values});")
+        connection.close()
     end
 
     def self.getComputedStatAggregate(ntileValue, returnedColumn, computeColumn1, computeColumn2)
@@ -20,7 +29,7 @@ class SQLMethods
                  "SELECT AVG(#{computeColumn1} - #{computeColumn2}) as #{returnedColumn} from aggregatestats GROUP BY ntile ORDER BY ntile ASC"
 
         #connection = PG::Connection.open(Configs.getConfigValue("postgresConnString"))
-        pgresults = @connection.exec(sqlcmd)
+        pgresults = @sharedConnection.exec(sqlcmd)
         #connection.close()
 
         pgresults.each_row do |row|
@@ -41,7 +50,7 @@ class SQLMethods
                  "SELECT AVG(#{column}) from aggregatestats GROUP BY ntile ORDER BY ntile ASC"
 
         #connection = PG::Connection.open(Configs.getConfigValue("postgresConnString"))
-        pgresults = @connection.exec(sqlcmd)
+        pgresults = @sharedConnection.exec(sqlcmd)
         #connection.close()
 
         pgresults.each_row do |row|
@@ -53,10 +62,17 @@ class SQLMethods
 
     def self.getMostRecentStatValue(column)
         #connection = PG::Connection.open(Configs.getConfigValue("postgresConnString"))
-        pgresults = @connection.exec("SELECT #{column} FROM monitorstats ORDER BY statsdate DESC LIMIT 1")
+        pgresults = @sharedConnection.exec("SELECT #{column} FROM monitorstats ORDER BY statsdate DESC LIMIT 1")
         #connection.close()
         
         return pgresults.getvalue(0,0)
+    end
+
+    def self.cleanUpOldStats(statsCutoff)
+        retentionDate = (Time.new - statsCutoff).strftime("%Y-%m-%d %H:%M:%S")
+        connection =  PG::Connection.open(Configs.getConfigValue("postgresConnString"))
+        connection.exec("DELETE FROM monitorstats where statsdate < '#{retentionDate}'")
+        connection.close()
     end
 
 end

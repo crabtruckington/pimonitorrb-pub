@@ -4,6 +4,7 @@ require_relative "serveRequest"
 require_relative "logging"
 require_relative "statsgen"
 require_relative "configs"
+require_relative "sqlHelpers"
 
 # base directory
 WEBROOT = Configs.getConfigValue("webRoot")
@@ -49,7 +50,7 @@ GenerateStats.generateStats()
 Log.log("Stats generated", 0)
 
 
-t2 = Thread.new do
+t1 = Thread.new do
     while true do
         begin            
             GenerateStats.generateStats()
@@ -61,7 +62,7 @@ t2 = Thread.new do
 end
 
 #we want to run this in its own thread so we can see how intensive it is in the stats
-t3 = Thread.new do
+t2 = Thread.new do
     while true do
         begin
             HTMLGen.htmlGenThread()
@@ -75,28 +76,19 @@ t3 = Thread.new do
     end
 end
 
+t3 = Thread.new do
+    while true do
+        begin
+            SQLMethods.cleanUpOldStats(Configs.getConfigValue("statsRetentionPeriod"))
+            Log.log("Cleaned up old stats", 1)
+            sleep(Configs.getConfigValue("statsRetentionSchedule"))
+        rescue => e
+            Log.log("Error cleaning up old stats!!!: " + e.to_s, 4)
+        end
+    end
+end
 
-# Thread.new do
-#     loopCount = 0
-#     genStatsPageEveryX = 1
-#     while true do
-#         if (loopCount == 0)
-#             Log.log("Garbage collecting", 1)
-#             GC.start()
-#         end
-        
-#         GenerateStats.generateStats()
-#         Log.log("Stats generated", 0)
-#         loopCount += 1
-
-#         if (loopCount == genStatsPageEveryX)
-#             HTMLGen.htmlGenThread()
-#             loopCount = 0        
-#         end
-#     end
-# end
-
-server = TCPServer.new('localhost', 6689)
+server = TCPServer.new(Configs.getConfigValue("serverHost"), Configs.getConfigValue("serverPort"))
 
 loop do
     #socket = server.accept
@@ -110,4 +102,3 @@ loop do
         end
     end
 end
-

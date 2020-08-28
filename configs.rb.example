@@ -1,14 +1,15 @@
 class Configs
     CONFIGVALUES =
     {
-        "htmlGenSleep" => 60,
-        "statsGenInterval" => 1,
-        "statsRetentionPeriod" => 60 * 60 * 24 * 7, #in seconds
-        "webRoot" => "./content".freeze,
-        "logLocation" => "./pimonitorrb.log".freeze,
-        "serverHost" => "localhost".freeze,
-        "serverPort" => 6689,
-        "logLevel" => 0,
+        "htmlGenSleep" => 60,                                #in seconds, how long between html page recompilation
+        "statsGenInterval" => 1,                             #in seconds, how long between stat collections
+        "statsRetentionPeriod" => 60 * 60 * 24 * 7,          #in seconds, how long to keep stats in the database
+        "statsRetentionSchedule" => 60 * 60 * 24,            #in seconds how long between retention runs
+        "webRoot" => "./content".freeze,                     #the directory the content lives in
+        "logLocation" => "./pimonitorrb.log".freeze,         # the file you want the logs to be saved in
+        "serverHost" => "localhost".freeze,                  #webserver host
+        "serverPort" => 6689,                                #webserver port
+        "logLevel" => 0,                                     #0 = DEBUG, 1 = INFO, 2 = WARN, 3 = ERROR, 4 = FATAL, 5 = UNKNOWN
         "postgresConnString" => "host=localhost user=xxxx password=xxxx dbname=pimonitor"
     }
 

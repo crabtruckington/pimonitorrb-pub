@@ -97,6 +97,7 @@ class HTMLGen
         currentNetworkKBOut = 0.0
         currentUptime = ""  
 
+        SQLMethods.openSharedConnection()
         cpuUsed = SQLMethods.getStatAggregate(aggregateSizeLarge, "cpuused")
         memUsed = SQLMethods.getComputedStatAggregate(aggregateSizeLarge, "memused", "memtotal", "memavailable")
 
@@ -121,6 +122,7 @@ class HTMLGen
         currentNetworkKBIn = SQLMethods.getMostRecentStatValue("networkkbin").to_f
         currentNetworkKBOut = SQLMethods.getMostRecentStatValue("networkkbout").to_f
         currentUptime = SQLMethods.getMostRecentStatValue("systemuptime")
+        SQLMethods.closeSharedConnection()
 
         
         #large charts
